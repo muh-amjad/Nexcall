@@ -1,0 +1,26 @@
+/.angular/cache
+# Specifies intentionally untracked files to ignore when using Git
+# http://git-scm.com/docs/gitignore
+
+*~
+*.sw[mnpcod]
+*.log
+*.tmp
+*.tmp.*
+log.txt
+*.sublime-project
+*.sublime-workspace
+npm-debug.log*
+
+.idea/
+.sourcemaps/
+.tmp/
+dist/
+node_modules/
+tmp/
+temp/
+*/.vs/*
+
+.vscode/plugins.json
+.vscode/typings
+typings

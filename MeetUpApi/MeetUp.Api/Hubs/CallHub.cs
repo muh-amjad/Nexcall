@@ -5,6 +5,12 @@ namespace MeetUp.Api.Hubs
 {
     public class CallHub : Hub
     {
+        public List<UserDto> allUsers;
+
+        public CallHub()
+        {
+            allUsers = new List<UserDto>();
+        }
         public override async Task OnConnectedAsync()
         {
             Console.WriteLine($"User Connected: {Context.ConnectionId}");
@@ -37,6 +43,15 @@ namespace MeetUp.Api.Hubs
         public async Task SendAnswer(SessionDescriptionDto answer)
         {
             await Clients.Others.SendAsync("ReceiveAnswer", answer);
+        }
+
+        public async Task UserJoin(string username)
+        {
+            Console.WriteLine($"{username} joined");
+            this.allUsers.Add(new UserDto(username, new Guid()));
+
+            // optional: notify others
+            await Clients.Others.SendAsync("UserJoined", allUsers);
         }
     }
 }

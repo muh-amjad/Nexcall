@@ -41,18 +41,20 @@
     <div class="users-section">
       <h3>Joined Users</h3>
 
-      <div class="user-item" *ngFor="let user of users">
-        <span>
-          {{ user.username }}
-          @if (user.username === currentUsername) {
-            <span> (You) </span>
-          }
-        </span>
+      @for (user of allUsers; track user.id) {
+        <div class="user-item">
+          <span>
+            {{ user.username }}
+            @if (user.username === currentUsername) {
+              <span> (You) </span>
+            }
+          </span>
 
-        @if (user.username !== currentUsername) {
-          <button (click)="callUser(user)">Call</button>
-        }
-      </div>
+          @if (user.username !== currentUsername) {
+            <button (click)="callUser(user)">Call</button>
+          }
+        </div>
+      }
     </div>
   </div>
 </div>

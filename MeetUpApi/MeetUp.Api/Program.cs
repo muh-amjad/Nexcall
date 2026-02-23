@@ -29,7 +29,11 @@ namespace MeetUp.Api
                 options.AddPolicy("AllowAngular",
                     policy =>
                     {
-                        policy.WithOrigins("https://192.168.0.101:4200", "https://192.168.0.111:4200")
+                        //policy.WithOrigins("https://192.168.0.101:4200", "https://192.168.0.111:4200")
+                        //      .AllowAnyHeader()
+                        //      .AllowAnyMethod()
+                        //      .AllowCredentials();
+                        policy.WithOrigins("http://localhost:4200/")
                               .AllowAnyHeader()
                               .AllowAnyMethod()
                               .AllowCredentials();

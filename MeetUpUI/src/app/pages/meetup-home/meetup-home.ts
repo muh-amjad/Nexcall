@@ -2,6 +2,11 @@ import { Component, ElementRef, OnInit, ViewChild, AfterViewInit } from '@angula
 import { SignalrService } from '../../services/signalr.service';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Store } from '@ngrx/store';
+import { AppState } from '../../app-state/app-state';
+import { getAllUsers } from '../../store/selectors/users.selectors';
+import { filter, Subscription } from 'rxjs';
+import { UserDto } from '../../dtos/user.dto';
 
 @Component({
   selector: 'app-meetup-home',
@@ -13,7 +18,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 export class MeetupHome implements OnInit, AfterViewInit {
   joinForm: FormGroup;
 
-  users: any[] = [];
+  allUsers: UserDto[] = [];
   currentUsername: string = '';
 
   isCameraOn = true;
@@ -30,22 +35,42 @@ export class MeetupHome implements OnInit, AfterViewInit {
   @ViewChild('remoteVideo', { static: false })
   remoteVideoRef!: ElementRef<HTMLVideoElement>;
 
-  constructor(private signalRService: SignalrService, private fb: FormBuilder) {
+  private subscriptions: Array<Subscription> = new Array<Subscription>();
+
+  constructor(
+    private signalRService: SignalrService,
+    private fb: FormBuilder,
+    private store: Store<AppState>,
+  ) {
     this.joinForm = this.fb.group({
-      username: ['', Validators.required]
+      username: ['', Validators.required],
     });
+  }
+
+  ngOnInIt() {
+    this.subscribeToImperialSystem();
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(subscription => subscription.unsubscribe());
+  }
+
+  private subscribeToImperialSystem(): void {
+    const subscription = this.store
+      .select(getAllUsers)
+      .pipe(filter((item) => item !== undefined))
+      .subscribe((allUsers) => {
+        this.allUsers = allUsers;
+      });
+    this.subscriptions.push(subscription);
   }
 
   join() {
     if (this.joinForm.invalid) return;
-
     this.currentUsername = this.joinForm.value.username;
-
-    this.users.push({
-      username: this.currentUsername
-    });
-
     this.joinForm.reset();
+
+    this.signalRService.joinUser(this.currentUsername);
   }
 
   callUser(user: any) {

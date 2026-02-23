@@ -60,4 +60,16 @@ export class SignalrService {
 
     // Optionally, handle other custom SignalR events as needed
   }
+
+  joinUser(username: string) {
+    this.hubConnection.invoke('joinUser', username);
+  }
+
+  public userJoinedListener(callback: (user: {username: string, id: string}) => void) {
+    this.hubConnection.on('UserJoined', (user) => {
+      console.log('User joined: ', user);
+      callback(user);
+      
+    });
+  }
 }

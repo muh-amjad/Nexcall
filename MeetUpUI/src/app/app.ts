@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { appConfig } from './app.config';
 import { routes } from './app.routes';
+import { UsersEffects } from './store/effects/users';
 
 @Component({
   selector: 'app-root',

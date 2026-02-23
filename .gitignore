@@ -12,15 +12,9 @@ log.txt
 *.sublime-workspace
 npm-debug.log*
 
-.idea/
-.sourcemaps/
-.tmp/
 dist/
 node_modules/
 tmp/
 temp/
 */.vs/*
 
-.vscode/plugins.json
-.vscode/typings
-typings

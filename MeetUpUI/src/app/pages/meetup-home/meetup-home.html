@@ -1,7 +1,58 @@
-<!-- <h1>SignalR Test</h1>
-<button (click)="send()">Send Test Message</button> -->
-<video #localVideo autoplay muted playsinline></video>
-<video #remoteVideo autoplay muted playsinline></video>
-<button (click)="startLocalStream()">Start Camera</button>
-<button (click)="setupPeerConnection(); startCall()">Start Call</button>
+<div class="app-container">
+  <!-- Header -->
+  <div class="header">
+    <h2>Meet Up</h2>
 
+    <form [formGroup]="joinForm" (ngSubmit)="join()" class="user-input">
+      <input type="text" placeholder="Enter your name" formControlName="username" />
+
+      <button type="submit" [disabled]="joinForm.invalid">Join</button>
+    </form>
+  </div>
+
+  <div class="main-content">
+    <!-- VIDEO SECTION -->
+    <div class="content-area">
+      <div class="video-section">
+        <div class="video-wrapper local-video">
+          <video #localVideo autoplay playsinline muted></video>
+
+          <div class="video-controls">
+            <button type="button" (click)="toggleCamera()">
+              {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
+            </button>
+
+            <button type="button" (click)="toggleMic()">
+              {{ isMicOn ? 'Mic Off' : 'Mic On' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="video-wrapper remote-video">
+          <video #remoteVideo autoplay playsinline></video>
+        </div>
+      </div>
+
+      <div class="call-actions">
+        <button type="button" class="end-call-btn" (click)="endCall()">End Call</button>
+      </div>
+    </div>
+    <!-- USERS SECTION -->
+    <div class="users-section">
+      <h3>Joined Users</h3>
+
+      <div class="user-item" *ngFor="let user of users">
+        <span>
+          {{ user.username }}
+          @if (user.username === currentUsername) {
+            <span> (You) </span>
+          }
+        </span>
+
+        @if (user.username !== currentUsername) {
+          <button (click)="callUser(user)">Call</button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

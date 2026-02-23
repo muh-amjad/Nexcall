@@ -1,13 +1,24 @@
 import { Component, ElementRef, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { SignalrService } from '../../services/signalr.service';
+import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
   selector: 'app-meetup-home',
   standalone: true,
   templateUrl: './meetup-home.html',
   styleUrl: './meetup-home.css',
+  imports: [CommonModule, ReactiveFormsModule],
 })
 export class MeetupHome implements OnInit, AfterViewInit {
+  joinForm: FormGroup;
+
+  users: any[] = [];
+  currentUsername: string = '';
+
+  isCameraOn = true;
+  isMicOn = true;
+  // ----------------
   localStream!: MediaStream;
   peerConnection!: RTCPeerConnection;
 
@@ -19,7 +30,39 @@ export class MeetupHome implements OnInit, AfterViewInit {
   @ViewChild('remoteVideo', { static: false })
   remoteVideoRef!: ElementRef<HTMLVideoElement>;
 
-  constructor(private signalRService: SignalrService) {}
+  constructor(private signalRService: SignalrService, private fb: FormBuilder) {
+    this.joinForm = this.fb.group({
+      username: ['', Validators.required]
+    });
+  }
+
+  join() {
+    if (this.joinForm.invalid) return;
+
+    this.currentUsername = this.joinForm.value.username;
+
+    this.users.push({
+      username: this.currentUsername
+    });
+
+    this.joinForm.reset();
+  }
+
+  callUser(user: any) {
+    console.log('Calling', user.username);
+  }
+
+  endCall() {
+    console.log('Call Ended');
+  }
+
+  toggleCamera() {
+    this.isCameraOn = !this.isCameraOn;
+  }
+
+  toggleMic() {
+    this.isMicOn = !this.isMicOn;
+  }
 
   // =============================
   // LIFECYCLE
@@ -27,24 +70,24 @@ export class MeetupHome implements OnInit, AfterViewInit {
 
   async ngOnInit(): Promise<void> {
     await this.startLocalStream();
-    this.setupPeerConnection();
-    this.signalRService.registerPeerConnection(this);
+    // this.setupPeerConnection();
+    // this.signalRService.registerPeerConnection(this);
   }
 
   ngAfterViewInit(): void {
     // Attach remote stream once
     this.remoteVideoRef.nativeElement.srcObject = this.remoteStream;
 
-    const remoteVideo = this.remoteVideoRef.nativeElement;
+    // const remoteVideo = this.remoteVideoRef.nativeElement;
 
-    // Attach remote stream
-    remoteVideo.srcObject = this.remoteStream;
+    // // Attach remote stream
+    // remoteVideo.srcObject = this.remoteStream;
 
-    // Play when metadata ready
-    remoteVideo.onloadedmetadata = () => {
-      console.log('Remote metadata loaded');
-      remoteVideo.play().catch((err) => console.log('Play error:', err));
-    };
+    // // Play when metadata ready
+    // remoteVideo.onloadedmetadata = () => {
+    //   console.log('Remote metadata loaded');
+    //   remoteVideo.play().catch((err) => console.log('Play error:', err));
+    // };
   }
 
   // =============================

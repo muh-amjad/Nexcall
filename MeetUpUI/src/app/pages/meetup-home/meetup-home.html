@@ -2,12 +2,15 @@
   <!-- Header -->
   <div class="header">
     <h2>Meet Up</h2>
+    @if (!currentUsername) {
+      <form [formGroup]="joinForm" (ngSubmit)="join()" class="user-input">
+        <input type="text" placeholder="Enter your name" formControlName="username" />
 
-    <form [formGroup]="joinForm" (ngSubmit)="join()" class="user-input">
-      <input type="text" placeholder="Enter your name" formControlName="username" />
-
-      <button type="submit" [disabled]="joinForm.invalid">Join</button>
-    </form>
+        <button type="submit" [disabled]="joinForm.invalid">Join</button>
+      </form>
+    } @else {
+      <div class="welcome-message">Welcome, {{ currentUsername }}</div>
+    }
   </div>
 
   <div class="main-content">
@@ -41,7 +44,7 @@
     <div class="users-section">
       <h3>Joined Users</h3>
 
-      @for (user of allUsers; track user.id) {
+      @for (user of sortedUsers; track user.id) {
         <div class="user-item">
           <span>
             {{ user.username }}

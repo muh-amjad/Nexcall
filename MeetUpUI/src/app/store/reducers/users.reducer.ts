@@ -13,6 +13,7 @@ export function UsersReducer(
       };
     }
     case userActions.ADD_USER: {
+      console.log('[UsersReducer] ADD_USER action received:', action.user);
       return {
         ...state,
         allUsers: [...state.allUsers, action.user],

@@ -9,37 +9,32 @@ namespace MeetUp.Api
 
             builder.WebHost.ConfigureKestrel(options =>
             {
-                options.Listen(System.Net.IPAddress.Parse("192.168.0.101"), 7248, listenOptions =>
+                options.Listen(System.Net.IPAddress.Parse("127.0.0.1"), 7248, listenOptions =>
                 {
                     listenOptions.UseHttps("D://MeetUpProject/MeetUpUI/ssl/server.pfx", "myCertificate");
                 });
 
             });
-            //builder.WebHost.UseUrls("https://0.0.0.0:7248");
+            //builder.WebHost.UseUrls("https://loacalhost:7248");
             // Add services to the container.
 
             builder.Services.AddControllers();
-            builder.Services.AddSignalR();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            //builder.Services.AddSwaggerGen();
 
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAngular",
                     policy =>
                     {
-                        //policy.WithOrigins("https://192.168.0.101:4200", "https://192.168.0.111:4200")
-                        //      .AllowAnyHeader()
-                        //      .AllowAnyMethod()
-                        //      .AllowCredentials();
-                        policy.WithOrigins("http://localhost:4200/")
+                        policy.WithOrigins("http://localhost:4200")
                               .AllowAnyHeader()
                               .AllowAnyMethod()
                               .AllowCredentials();
                     });
             });
-
+            builder.Services.AddSignalR();
 
             var app = builder.Build();
             app.UseCors("AllowAngular");
@@ -47,8 +42,8 @@ namespace MeetUp.Api
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
+                //app.UseSwagger();
+                //app.UseSwaggerUI();
             }
 
             app.UseHttpsRedirection();

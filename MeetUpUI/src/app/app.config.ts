@@ -12,6 +12,7 @@ import { UserState } from './store/state/users';
 import * as userActions from './store/actions/users.actions';
 import { AppState } from './app-state/app-state';
 import { LoggingService } from './services/logging.service';
+import { UsersFacade } from './store/facades/users.facade';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,6 +22,7 @@ export const appConfig: ApplicationConfig = {
     provideState('userState', UsersReducer),
     provideEffects([UsersEffects]),
     SignalrService,
-    LoggingService
+    LoggingService,
+    UsersFacade
   ]
 };

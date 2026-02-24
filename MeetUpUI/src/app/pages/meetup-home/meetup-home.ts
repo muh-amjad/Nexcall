@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, signal } from '@angular/core';
 import { SignalrService } from '../../services/signalr.service';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -18,7 +18,7 @@ import { UserDto } from '../../dtos/user.dto';
 export class MeetupHome implements OnInit, AfterViewInit {
   joinForm: FormGroup;
 
-  allUsers: UserDto[] = [];
+  allUsers = signal<UserDto[]>([]);
   currentUsername: string = '';
 
   isCameraOn = true;
@@ -46,23 +46,32 @@ export class MeetupHome implements OnInit, AfterViewInit {
       username: ['', Validators.required],
     });
   }
-
-  ngOnInIt() {
-    this.subscribeToImperialSystem();
+  async ngOnInit(): Promise<void> {
+    this.subscribeToUserslist();
+    // await this.startLocalStream();
+    // this.setupPeerConnection();
+    // this.signalRService.registerPeerConnection(this);
   }
 
   ngOnDestroy() {
-    this.subscriptions.forEach(subscription => subscription.unsubscribe());
+    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
   }
 
-  private subscribeToImperialSystem(): void {
+  private subscribeToUserslist(): void {
     const subscription = this.store
       .select(getAllUsers)
       .pipe(filter((item) => item !== undefined))
       .subscribe((allUsers) => {
-        this.allUsers = allUsers;
+        this.allUsers.set(allUsers);
       });
     this.subscriptions.push(subscription);
+  }
+
+  get sortedUsers(): UserDto[] {
+    // apna user top pe leke aao
+    const me = this.allUsers().filter((u) => u.username === this.currentUsername);
+    const others = this.allUsers().filter((u) => u.username !== this.currentUsername);
+    return [...me, ...others];
   }
 
   join() {
@@ -93,21 +102,12 @@ export class MeetupHome implements OnInit, AfterViewInit {
   // LIFECYCLE
   // =============================
 
-  async ngOnInit(): Promise<void> {
-    await this.startLocalStream();
-    // this.setupPeerConnection();
-    // this.signalRService.registerPeerConnection(this);
-  }
-
   ngAfterViewInit(): void {
     // Attach remote stream once
-    this.remoteVideoRef.nativeElement.srcObject = this.remoteStream;
-
+    // this.remoteVideoRef.nativeElement.srcObject = this.remoteStream;
     // const remoteVideo = this.remoteVideoRef.nativeElement;
-
     // // Attach remote stream
     // remoteVideo.srcObject = this.remoteStream;
-
     // // Play when metadata ready
     // remoteVideo.onloadedmetadata = () => {
     //   console.log('Remote metadata loaded');
@@ -162,27 +162,20 @@ export class MeetupHome implements OnInit, AfterViewInit {
     // ONTRACK (REMOTE STREAM)
     // =============================
 
-    // this.peerConnection.ontrack = (event) => {
-    //   console.log('[Peer] ontrack fired:', event.track.kind);
+    this.peerConnection.ontrack = (event) => {
+      console.log('[Peer] ontrack fired:', event.track.kind);
+      this.remoteVideoRef.nativeElement.srcObject = event.streams[0];
+    };
 
-    //   // Add track only if not already added
+    // this.peerConnection.ontrack = (event) => {
+    //   console.log('Track received:', event.track.kind);
+    //   console.log('Track readyState:', event.track.readyState);
+    //   console.log('Track enabled:', event.track.enabled);
+
     //   if (!this.remoteStream.getTracks().includes(event.track)) {
     //     this.remoteStream.addTrack(event.track);
     //   }
-
-    //   // DO NOT call play() here
-    //   // DO NOT reassign srcObject here
     // };
-
-    this.peerConnection.ontrack = (event) => {
-      console.log('Track received:', event.track.kind);
-      console.log('Track readyState:', event.track.readyState);
-      console.log('Track enabled:', event.track.enabled);
-
-      if (!this.remoteStream.getTracks().includes(event.track)) {
-        this.remoteStream.addTrack(event.track);
-      }
-    };
 
     // =============================
     // ICE
@@ -190,9 +183,7 @@ export class MeetupHome implements OnInit, AfterViewInit {
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        this.signalRService.sendMessage(
-          JSON.stringify({ type: 'ice', candidate: event.candidate }),
-        );
+        // this.signalRService.offerCandidate(event.candidate);
       }
     };
 
@@ -221,14 +212,14 @@ export class MeetupHome implements OnInit, AfterViewInit {
     }
   }
 
-  async startCall() {
-    this.ensurePeerConnection();
+  // async startCall() {
+  //   this.ensurePeerConnection();
 
-    const offer = await this.peerConnection.createOffer();
-    await this.peerConnection.setLocalDescription(offer);
+  //   const offer = await this.peerConnection.createOffer();
+  //   await this.peerConnection.setLocalDescription(offer);
 
-    this.signalRService.sendMessage(JSON.stringify({ type: 'offer', offer }));
+  //   // this.signalRService.sendMessage(JSON.stringify({ type: 'offer', offer }));
 
-    console.log('[Call] Offer sent');
-  }
+  //   console.log('[Call] Offer sent');
+  // }
 }

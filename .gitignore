@@ -1,20 +1,69 @@
+# ------------------------
+# Angular / Node
+# ------------------------
 /.angular/cache
-# Specifies intentionally untracked files to ignore when using Git
-# http://git-scm.com/docs/gitignore
+dist/
+node_modules/
+tmp/
+temp/
 
+# IDE / editor
+*.sublime-project
+*.sublime-workspace
+.vscode/
+*/.vs/*
+
+# Logs & temp
 *~
 *.sw[mnpcod]
 *.log
 *.tmp
 *.tmp.*
 log.txt
-*.sublime-project
-*.sublime-workspace
 npm-debug.log*
 
-dist/
-node_modules/
-tmp/
-temp/
-*/.vs/*
+# ------------------------
+# .NET / C#
+# ------------------------
+# Build folders
+bin/
+obj/
+out/
 
+# Publish output
+*.publish.xml
+publish/
+
+# Visual Studio / Rider / VS Code files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.sln.ide
+.idea/
+
+# ASP.NET temporary files
+App_Data/
+
+# IIS Express
+IISExpress/
+
+# Dotnet CLI logs
+*.dotnet/
+
+# Backup files
+*.bak
+*.Backup
+
+# Test results
+TestResults/
+*.trx
+
+# Database files
+*.mdf
+*.ldf
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini

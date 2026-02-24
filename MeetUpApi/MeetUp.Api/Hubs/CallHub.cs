@@ -27,23 +27,6 @@ namespace MeetUp.Api.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        //// Send ICE candidate from one client to all others
-        //public async Task SendIceCandidate(IceCandidateDto candidate)
-        //{
-        //    // Forward to all other clients in the same room
-        //    await Clients.Others.SendAsync("ReceiveIceCandidate", candidate);
-        //}
-
-        //public async Task SendOffer(SessionDescriptionDto offer)
-        //{
-        //    await Clients.Others.SendAsync("ReceiveOffer", offer);
-        //}
-
-        //public async Task SendAnswer(SessionDescriptionDto answer)
-        //{
-        //    await Clients.Others.SendAsync("ReceiveAnswer", answer);
-        //}
-
         public async Task JoinUser(string username)
         {
             Console.WriteLine($"{username} joined");
@@ -54,7 +37,7 @@ namespace MeetUp.Api.Hubs
             {
                 Console.WriteLine($"ID: ${u.Id}, Username: {u.Username}");
             });
-            // optional: notify others
+
             await Clients.All.SendAsync("UserJoined", allUsers.Values.ToList());
         }
 
@@ -72,7 +55,6 @@ namespace MeetUp.Api.Hubs
 
         public async Task SendCandidate(object candidate)
         {
-            // optional: notify others
             await Clients.Others.SendAsync("ReceiveCandidate", candidate);
         }
     }

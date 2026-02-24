@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, AfterViewInit, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, signal, OnDestroy } from '@angular/core';
 import { SignalrService } from '../../services/signalr.service';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -15,7 +15,7 @@ import { UserDto } from '../../dtos/user.dto';
   styleUrl: './meetup-home.css',
   imports: [CommonModule, ReactiveFormsModule],
 })
-export class MeetupHome implements OnInit, AfterViewInit {
+export class MeetupHome implements OnInit, OnDestroy {
   joinForm: FormGroup;
 
   allUsers = signal<UserDto[]>([]);
@@ -26,8 +26,6 @@ export class MeetupHome implements OnInit, AfterViewInit {
   // ----------------
   localStream!: MediaStream;
   peerConnection!: RTCPeerConnection;
-
-  private remoteStream = new MediaStream();
 
   @ViewChild('localVideo', { static: false })
   localVideoRef!: ElementRef<HTMLVideoElement>;
@@ -48,9 +46,9 @@ export class MeetupHome implements OnInit, AfterViewInit {
   }
   async ngOnInit(): Promise<void> {
     this.subscribeToUserslist();
-    // await this.startLocalStream();
-    // this.setupPeerConnection();
-    // this.signalRService.registerPeerConnection(this);
+    await this.startLocalStream();
+    this.setupPeerConnection();
+    this.signalRService.registerPeerConnection(this);
   }
 
   ngOnDestroy() {
@@ -68,7 +66,6 @@ export class MeetupHome implements OnInit, AfterViewInit {
   }
 
   get sortedUsers(): UserDto[] {
-    // apna user top pe leke aao
     const me = this.allUsers().filter((u) => u.username === this.currentUsername);
     const others = this.allUsers().filter((u) => u.username !== this.currentUsername);
     return [...me, ...others];
@@ -84,6 +81,7 @@ export class MeetupHome implements OnInit, AfterViewInit {
 
   callUser(user: any) {
     console.log('Calling', user.username);
+    this.startCall(user);
   }
 
   endCall() {
@@ -92,27 +90,12 @@ export class MeetupHome implements OnInit, AfterViewInit {
 
   toggleCamera() {
     this.isCameraOn = !this.isCameraOn;
+    this.localStream.getVideoTracks().forEach((track) => (track.enabled = this.isCameraOn));
   }
 
   toggleMic() {
     this.isMicOn = !this.isMicOn;
-  }
-
-  // =============================
-  // LIFECYCLE
-  // =============================
-
-  ngAfterViewInit(): void {
-    // Attach remote stream once
-    // this.remoteVideoRef.nativeElement.srcObject = this.remoteStream;
-    // const remoteVideo = this.remoteVideoRef.nativeElement;
-    // // Attach remote stream
-    // remoteVideo.srcObject = this.remoteStream;
-    // // Play when metadata ready
-    // remoteVideo.onloadedmetadata = () => {
-    //   console.log('Remote metadata loaded');
-    //   remoteVideo.play().catch((err) => console.log('Play error:', err));
-    // };
+    this.localStream.getAudioTracks().forEach((track) => (track.enabled = this.isMicOn));
   }
 
   // =============================
@@ -128,7 +111,6 @@ export class MeetupHome implements OnInit, AfterViewInit {
 
       const localVideo = this.localVideoRef.nativeElement;
       localVideo.srcObject = this.localStream;
-      localVideo.muted = true; // Prevent echo
       await localVideo.play();
 
       console.log('[Local] Stream started');
@@ -136,10 +118,6 @@ export class MeetupHome implements OnInit, AfterViewInit {
       console.error('Camera/Mic error:', err);
     }
   }
-
-  // =============================
-  // PEER CONNECTION
-  // =============================
 
   setupPeerConnection() {
     if (this.peerConnection) {
@@ -167,23 +145,9 @@ export class MeetupHome implements OnInit, AfterViewInit {
       this.remoteVideoRef.nativeElement.srcObject = event.streams[0];
     };
 
-    // this.peerConnection.ontrack = (event) => {
-    //   console.log('Track received:', event.track.kind);
-    //   console.log('Track readyState:', event.track.readyState);
-    //   console.log('Track enabled:', event.track.enabled);
-
-    //   if (!this.remoteStream.getTracks().includes(event.track)) {
-    //     this.remoteStream.addTrack(event.track);
-    //   }
-    // };
-
-    // =============================
-    // ICE
-    // =============================
-
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        // this.signalRService.offerCandidate(event.candidate);
+        this.signalRService.offerIceCandidate(event.candidate);
       }
     };
 
@@ -196,30 +160,19 @@ export class MeetupHome implements OnInit, AfterViewInit {
     };
   }
 
-  // =============================
-  // SIGNALR HELPERS
-  // =============================
-
   ensurePeerConnection() {
     if (!this.peerConnection) {
       this.setupPeerConnection();
-      const remoteVideo = this.remoteVideoRef.nativeElement;
-
-      // remoteVideo.onloadedmetadata = () => {
-      //   console.log('Remote metadata loaded');
-      //   remoteVideo.play().catch((err) => console.log(err));
-      // };
     }
   }
 
-  // async startCall() {
-  //   this.ensurePeerConnection();
+  async startCall(user: UserDto) {
+    this.ensurePeerConnection();
 
-  //   const offer = await this.peerConnection.createOffer();
-  //   await this.peerConnection.setLocalDescription(offer);
-
-  //   // this.signalRService.sendMessage(JSON.stringify({ type: 'offer', offer }));
-
-  //   console.log('[Call] Offer sent');
-  // }
+    const offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(offer);
+    console.log(`User to call: ${user.username}, Offer created:`, offer);
+    this.signalRService.sendCallOffer({ to: user.id, offer: this.peerConnection.localDescription });
+    console.log('[Call] Offer sent');
+  }
 }

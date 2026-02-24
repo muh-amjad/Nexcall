@@ -11,21 +11,12 @@ namespace MeetUp.Api.Hubs
         private static ConcurrentDictionary<string, UserDto> allUsers = new ConcurrentDictionary<string, UserDto>();
 
         public CallHub() { }
-        //public override async Task OnConnectedAsync()
-        //{
-        //    Console.WriteLine($"User Connected: {Context.ConnectionId}");
-        //    await base.OnConnectedAsync();
-        //}
-
+        
         public override async Task OnConnectedAsync()
         {
             //var connectionId = Context.ConnectionId;
 
             Console.WriteLine($"User Connected: {Context.ConnectionId}");
-
-            // Send connection id back to the connected client
-            //await Clients.Caller.SendAsync("ConnectionEstablished", connectionId);
-
             await base.OnConnectedAsync();
         }
 
@@ -35,11 +26,6 @@ namespace MeetUp.Api.Hubs
             Console.WriteLine($"User Disconnected: {Context.ConnectionId}");
             await base.OnDisconnectedAsync(exception);
         }
-
-        //public async Task SendMessage(string message)
-        //{
-        //    await Clients.All.SendAsync("ReceiveMessage", message);
-        //}
 
         //// Send ICE candidate from one client to all others
         //public async Task SendIceCandidate(IceCandidateDto candidate)
@@ -72,13 +58,22 @@ namespace MeetUp.Api.Hubs
             await Clients.All.SendAsync("UserJoined", allUsers.Values.ToList());
         }
 
-        //public async Task OfferCandidate(RTCIceCandidate candidate)
-        //{
-        //    Console.WriteLine($"{username} joined");
-        //    this.allUsers.Add(new UserDto(username, new Guid()));
+        public async Task SendCallOffer(CallOfferDto callOffer)
+        {
+            Console.WriteLine($"Call offer sent: {callOffer.ToString()}");
+            await Clients.Client(callOffer.To).SendAsync("ReceiveCallOffer", callOffer);
+        }
 
-        //    // optional: notify others
-        //    await Clients.Others.SendAsync("UserJoined", allUsers);
-        //}
+        public async Task SendCallAnswer(CallOfferDto callOffer)
+        {
+            Console.WriteLine($"Call Answer sent: {callOffer.ToString()}");
+            await Clients.Client(callOffer.From).SendAsync("ReceiveCallAnswer", callOffer);
+        }
+
+        public async Task SendCandidate(object candidate)
+        {
+            // optional: notify others
+            await Clients.Others.SendAsync("ReceiveCandidate", candidate);
+        }
     }
 }

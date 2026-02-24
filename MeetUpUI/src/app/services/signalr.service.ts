@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { UsersFacade } from '../store/facades/users.facade';
+import { CallOfferDto } from '../dtos/callofferDto';
 
 @Injectable()
 export class SignalrService {
@@ -27,19 +28,65 @@ export class SignalrService {
         console.log('SignalR Connected with ID: ', this.myConnectionID);
       })
       .catch((err) => console.error('SignalR connection failed', err));
-
-      this.userJoinedListener();
   }
 
-  // public sendMessage(message: string) {
-  //   this.hubConnection.invoke('SendMessage', message);
-  // }
+  joinUser(username: string) {
+    this.hubConnection.invoke('JoinUser', username);
+  }
 
-  // public receiveMessage() {
-  //   this.hubConnection.on('ReceiveMessage', (message) => {
-  //     console.log('Message received: ', message);
-  //   });
-  // }
+  sendCallOffer(offerData: { to: string; offer: RTCSessionDescription | null }) {
+    this.hubConnection.invoke(
+      'SendCallOffer',
+      new CallOfferDto(this.myConnectionID, offerData.to, offerData.offer!),
+    );
+  }
+
+  offerIceCandidate(candidate: RTCIceCandidate) {
+    this.hubConnection.invoke('SendCandidate', candidate);
+    console.log('ICE candidate sent via SignalR: ', candidate);
+  }
+
+  userJoined() {
+    this.hubConnection.on('UserJoined', (allUsers) => {
+      console.log('User joined from server: ', JSON.stringify(allUsers));
+
+      this.userFacade.updateUsersList(allUsers);
+    });
+  }
+
+  receiveIceCandidate() {
+    this.hubConnection.on('ReceiveCandidate', async (candidate: RTCIceCandidate) => {
+      console.log('Received ICE candidate from SignalR: ', candidate);
+      if (this.peerConnection) {
+        try {
+          await this.peerConnection.addIceCandidate(candidate);
+          console.log('ICE candidate added to peer connection');
+        } catch (error) {
+          console.error('Error adding received ICE candidate', error);
+        }
+      }
+    });
+  }
+
+  receiveCallOffer() {
+    this.hubConnection.on('ReceiveCallOffer', async (callOffer: CallOfferDto) => {
+      console.log('Received call offer:', callOffer);
+      await this.peerConnection.setRemoteDescription(callOffer.offer);
+      const offerAnswer = await this.peerConnection.createAnswer();
+      await this.peerConnection.setLocalDescription(offerAnswer);
+      this.hubConnection.invoke(
+        'SendCallAnswer',
+        new CallOfferDto(callOffer.from, callOffer.to, this.peerConnection.localDescription!),
+      );
+    });
+  }
+
+  receiveCallAnswer() {
+    this.hubConnection.on('ReceiveCallAnswer', async (callOffer: CallOfferDto) => {
+      console.log('Received call answer:', callOffer);
+      await this.peerConnection.setRemoteDescription(callOffer.offer);
+    });
+  }
 
   // Accepts the component instance, not just the peer connection
   registerPeerConnection(meetupHomeComponent: any) {
@@ -48,43 +95,9 @@ export class SignalrService {
     this.peerConnection = meetupHomeComponent.peerConnection;
 
     // SignalR handlers
-    this.hubConnection.on('ReceiveMessage', async (message) => {
-      const data = JSON.parse(message);
-      meetupHomeComponent.ensurePeerConnection();
-      this.peerConnection = meetupHomeComponent.peerConnection;
-      if (data.type === 'offer') {
-        console.log('Offer received');
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await this.peerConnection.createAnswer();
-        await this.peerConnection.setLocalDescription(answer);
-        // this.sendMessage(JSON.stringify({ type: 'answer', answer }));
-      } else if (data.type === 'answer') {
-        console.log('Answer received');
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      } else if (data.type === 'ice') {
-        console.log('ICE candidate received');
-        await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    });
-
-    // Optionally, handle other custom SignalR events as needed
+    this.userJoined();
+    this.receiveCallOffer();
+    this.receiveIceCandidate();
+    this.receiveCallAnswer();
   }
-
-  joinUser(username: string) {
-    this.hubConnection.invoke('JoinUser', username);
-  }
-
-  public userJoinedListener() {
-    this.hubConnection.on('UserJoined', (allUsers) => {
-      console.log('User joined from server: ', JSON.stringify(allUsers));
-
-      // Dispatch to store
-      this.userFacade.updateUsersList(allUsers);
-    });
-  }
-
-  // offerCandidate(candidate: RTCIceCandidate) {
-  //   this.hubConnection.invoke('SendCandidate', Context candidate);
-  //   console.log('ICE candidate sent via SignalR: ', candidate);
-  // }
 }

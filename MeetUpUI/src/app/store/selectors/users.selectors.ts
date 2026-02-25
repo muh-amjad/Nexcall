@@ -1,8 +1,8 @@
-import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { UserState } from '../state/users';
+import { createSelector } from '@ngrx/store';
+import { usersFeature } from '../reducers/users.reducer';
 
-// 1. Create a feature selector for the 'user' slice
-export const getUserState = createFeatureSelector<UserState>('userState');
+export const selectUsersState = usersFeature.selectUsersState;
 
-// 2. Create a specific selector
-export const getAllUsers = createSelector(getUserState, (state: UserState) => state.allUsers);
+export const selectUsers = createSelector(selectUsersState, (state) => state.users);
+
+export const selectLoading = createSelector(selectUsersState, (state) => state.loading);

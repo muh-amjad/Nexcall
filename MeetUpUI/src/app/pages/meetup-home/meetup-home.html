@@ -36,10 +36,13 @@
         </div>
       </div>
 
-      <div class="call-actions">
-        <button type="button" class="end-call-btn" (click)="endCall()">End Call</button>
-      </div>
+      @if (isInCall().isCallStarted) {
+        <div class="call-actions">
+          <button type="button" class="end-call-btn" (click)="endCall()">End Call</button>
+        </div>
+      }
     </div>
+
     <!-- USERS SECTION -->
     <div class="users-section">
       <h3>Joined Users</h3>

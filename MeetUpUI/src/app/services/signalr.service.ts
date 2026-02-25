@@ -1,15 +1,18 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { UsersFacade } from '../store/facades/users.facade';
 import { CallOfferDto } from '../dtos/callofferDto';
+import { CallFacade } from '../store/facades/call.facade';
 
 @Injectable()
 export class SignalrService {
+  private userFacade = inject(UsersFacade);
+  private callFacade = inject(CallFacade);
   private myConnectionID!: string;
   private hubConnection!: signalR.HubConnection;
   private peerConnection!: RTCPeerConnection;
 
-  constructor(private userFacade: UsersFacade) {
+  constructor() {
     this.createHubConnection();
     this.myConnectionID = '';
   }
@@ -50,7 +53,7 @@ export class SignalrService {
     this.hubConnection.on('UserJoined', (allUsers) => {
       console.log('User joined from server: ', JSON.stringify(allUsers));
 
-      this.userFacade.updateUsersList(allUsers);
+      this.userFacade.updateUserList(allUsers);
     });
   }
 
@@ -85,6 +88,7 @@ export class SignalrService {
     this.hubConnection.on('ReceiveCallAnswer', async (callOffer: CallOfferDto) => {
       console.log('Received call answer:', callOffer);
       await this.peerConnection.setRemoteDescription(callOffer.offer);
+      this.callFacade.updateCallState(true);
     });
   }
 

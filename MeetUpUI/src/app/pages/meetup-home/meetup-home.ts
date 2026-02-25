@@ -1,12 +1,10 @@
-import { Component, ElementRef, OnInit, ViewChild, signal, OnDestroy } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { SignalrService } from '../../services/signalr.service';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Store } from '@ngrx/store';
-import { AppState } from '../../app-state/app-state';
-import { getAllUsers } from '../../store/selectors/users.selectors';
-import { filter, Subscription } from 'rxjs';
 import { UserDto } from '../../dtos/user.dto';
+import { UsersFacade } from '../../store/facades/users.facade';
+import { CallFacade } from '../../store/facades/call.facade';
 
 @Component({
   selector: 'app-meetup-home',
@@ -15,11 +13,17 @@ import { UserDto } from '../../dtos/user.dto';
   styleUrl: './meetup-home.css',
   imports: [CommonModule, ReactiveFormsModule],
 })
-export class MeetupHome implements OnInit, OnDestroy {
+export class MeetupHome implements OnInit {
+  private usersFacade = inject(UsersFacade);
+  private callFacade = inject(CallFacade);
+  private signalRService = inject(SignalrService);
+  private fb = inject(FormBuilder);
+
   joinForm: FormGroup;
 
-  allUsers = signal<UserDto[]>([]);
+  allUsers = this.usersFacade.users;
   currentUsername: string = '';
+  isInCall = this.callFacade.isCallStarted;
 
   isCameraOn = true;
   isMicOn = true;
@@ -33,36 +37,15 @@ export class MeetupHome implements OnInit, OnDestroy {
   @ViewChild('remoteVideo', { static: false })
   remoteVideoRef!: ElementRef<HTMLVideoElement>;
 
-  private subscriptions: Array<Subscription> = new Array<Subscription>();
-
-  constructor(
-    private signalRService: SignalrService,
-    private fb: FormBuilder,
-    private store: Store<AppState>,
-  ) {
+  constructor() {
     this.joinForm = this.fb.group({
       username: ['', Validators.required],
     });
   }
   async ngOnInit(): Promise<void> {
-    this.subscribeToUserslist();
     await this.startLocalStream();
     this.setupPeerConnection();
     this.signalRService.registerPeerConnection(this);
-  }
-
-  ngOnDestroy() {
-    this.subscriptions.forEach((subscription) => subscription.unsubscribe());
-  }
-
-  private subscribeToUserslist(): void {
-    const subscription = this.store
-      .select(getAllUsers)
-      .pipe(filter((item) => item !== undefined))
-      .subscribe((allUsers) => {
-        this.allUsers.set(allUsers);
-      });
-    this.subscriptions.push(subscription);
   }
 
   get sortedUsers(): UserDto[] {

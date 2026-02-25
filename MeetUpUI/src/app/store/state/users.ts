@@ -1,7 +1,11 @@
-import { UserDto } from '../../dtos/user.dto';
+import { User } from '../../models/user.model';
 
-export class UserState {
-  allUsers: UserDto[] = [];
+export interface UsersState {
+  users: User[];
+  loading: boolean;
 }
 
-export const initialUserState: UserState = new UserState();
+export const initialState: UsersState = {
+  users: [],
+  loading: false
+};

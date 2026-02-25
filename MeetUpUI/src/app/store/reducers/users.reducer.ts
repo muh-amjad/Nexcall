@@ -1,33 +1,31 @@
-import { UserState, initialUserState } from '../state/users';
-import * as userActions from '../actions/users.actions';
+import { createFeature, createReducer, on } from '@ngrx/store';
+import { initialState } from '../state/users';
+import * as UsersActions from '../actions/users.actions';
+import { User } from '../../models/user.model';
 
-export function UsersReducer(
-  state: UserState = initialUserState,
-  action: userActions.UserActions,
-): UserState {
-  switch (action.type) {
-    case userActions.UPDATE_USERS_LIST: {
-      return {
-        ...state,
-        allUsers: action.users,
-      };
-    }
-    case userActions.ADD_USER: {
-      console.log('[UsersReducer] ADD_USER action received:', action.user);
-      return {
-        ...state,
-        allUsers: [...state.allUsers, action.user],
-      };
-    }
+export const usersFeature = createFeature({
+  name: 'users',
 
-    case userActions.REMOVE_USER: {
-      return {
-        ...state,
-        allUsers: state.allUsers.filter((u) => u.id !== action.user.id),
-      };
-    }
+  reducer: createReducer(
+    initialState,
 
-    default:
-      return state;
-  }
-}
+    on(UsersActions.addUser, (state, { user }) => ({
+      ...state,
+      users: [...state.users, user],
+    })),
+
+    on(UsersActions.removeUser, (state, { user }) => ({
+      ...state,
+      users: state.users.filter((u: User) => u.id !== user.id),
+    })),
+
+    on(UsersActions.setLoading, (state, { loading }) => ({
+      ...state,
+      loading,
+    })),
+    on(UsersActions.updateUserList, (state, { users }) => ({
+      ...state,
+      users,
+    })),
+  ),
+});

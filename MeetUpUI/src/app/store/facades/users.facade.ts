@@ -1,20 +1,29 @@
-import { Store } from "@ngrx/store";
-import { AppState } from "../../app-state/app-state";
-import { Injectable } from "@angular/core";
-import { UserDto } from "../../dtos/user.dto";
-import { AddUserAction, UpdateUsersListAction } from "../actions/users.actions";
+import { Injectable, inject } from '@angular/core';
+import { Store } from '@ngrx/store';
+import * as UsersActions from '../actions/users.actions';
+import { usersFeature } from '../reducers/users.reducer';
+import { User } from '../../models/user.model';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class UsersFacade {
-  constructor(private store: Store<AppState>) {}
+  private store = inject(Store);
 
-  public updateUsersList(users: UserDto[]): void{
-    this.store.dispatch(new UpdateUsersListAction(users));
+  users = this.store.selectSignal(usersFeature.selectUsers);
+  loading = this.store.selectSignal(usersFeature.selectLoading);
+
+  addUser(user: User) {
+    this.store.dispatch(UsersActions.addUser({ user }));
   }
 
-  public addUser(user: UserDto): void{
-    this.store.dispatch(new AddUserAction(user));
+  removeUser(user: User) {
+    this.store.dispatch(UsersActions.removeUser({ user }));
+  }
+
+  setLoading(loading: boolean) {
+    this.store.dispatch(UsersActions.setLoading({ loading }));
+  }
+
+  updateUserList(users: { id: string; username: string }[]) {
+    this.store.dispatch(UsersActions.updateUserList({ users }));
   }
 }

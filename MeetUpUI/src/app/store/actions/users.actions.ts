@@ -1,23 +1,15 @@
-import { Action } from '@ngrx/store';
-import { UserDto } from '../../dtos/user.dto';
-
 export const UPDATE_USERS_LIST = '[User] Update Users List';
 export const ADD_USER = '[User] ADD_USER';
 export const REMOVE_USER = '[User] REMOVE_USER';
+export const SET_LOADING = '[User] Set Loading';
 
-export class UpdateUsersListAction implements Action {
-  readonly type = UPDATE_USERS_LIST;
-  constructor(public users: UserDto[]) {}
-}
+import { createAction, props } from '@ngrx/store';
+import { User } from '../../models/user.model';
 
-export class AddUserAction implements Action {
-  readonly type = ADD_USER;
-  constructor(public user: UserDto) {}
-}
+export const addUser = createAction(ADD_USER, props<{ user: User }>());
 
-export class RemoveUserAction implements Action {
-  readonly type = REMOVE_USER;
-  constructor(public user: UserDto) {}
-}
+export const removeUser = createAction(REMOVE_USER, props<{ user: User }>());
 
-export type UserActions = UpdateUsersListAction | AddUserAction | RemoveUserAction;
+export const setLoading = createAction(SET_LOADING, props<{ loading: boolean }>());
+
+export const updateUserList = createAction(UPDATE_USERS_LIST, props<{ users: User[] }>());

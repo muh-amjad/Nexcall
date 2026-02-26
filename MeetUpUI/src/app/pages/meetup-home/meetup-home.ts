@@ -30,6 +30,7 @@ export class MeetupHome implements OnInit {
   // ----------------
   localStream!: MediaStream;
   peerConnection!: RTCPeerConnection;
+  targetUserId!: string;
 
   @ViewChild('localVideo', { static: false })
   localVideoRef!: ElementRef<HTMLVideoElement>;
@@ -44,8 +45,8 @@ export class MeetupHome implements OnInit {
   }
   async ngOnInit(): Promise<void> {
     await this.startLocalStream();
-    this.setupPeerConnection();
-    this.signalRService.registerPeerConnection(this);
+    this.signalRService.attachSignalRHandlers();
+    this.signalRService.setComponent(this);
   }
 
   get sortedUsers(): UserDto[] {
@@ -69,6 +70,7 @@ export class MeetupHome implements OnInit {
 
   endCall() {
     console.log('Call Ended');
+    this.signalRService.callEnded();
   }
 
   toggleCamera() {
@@ -102,60 +104,100 @@ export class MeetupHome implements OnInit {
     }
   }
 
-  setupPeerConnection() {
-    if (this.peerConnection) {
-      this.peerConnection.close();
+  async setupPeerConnection() {
+    if (!this.peerConnection || this.peerConnection.connectionState === 'closed') {
+      this.peerConnection = this.createPeerConnection();
+
+      console.log('[Peer] Connection created');
+
+      this.localStream.getTracks().forEach((track) => {
+        this.peerConnection.addTrack(track, this.localStream);
+      });
+
+      this.peerConnection.ontrack = (event) => {
+        this.remoteVideoRef.nativeElement.srcObject = event.streams[0];
+      };
+
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          this.signalRService.offerIceCandidate(event.candidate);
+        }
+      };
+
+      this.peerConnection.onconnectionstatechange = async () => {
+        console.log('[Peer] State:', this.peerConnection.connectionState);
+        if (this.peerConnection.connectionState === 'failed') {
+          await this.restartIce();
+        }
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        const state = this.peerConnection.iceConnectionState;
+        console.log('[Peer] ICE:', state);
+        if (state === 'failed') {
+          console.log('[Peer] ICE failed, restarting');
+          this.restartIce();
+        }
+        if (state === 'closed') {
+          console.log('[Peer] Closed');
+        }
+      };
     }
 
-    this.peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
-
-    console.log('[Peer] Connection created');
-
-    // Add local tracks
-    this.localStream.getTracks().forEach((track) => {
-      this.peerConnection.addTrack(track, this.localStream);
-      console.log('[Peer] Added local track:', track.kind);
-    });
-
-    // =============================
-    // ONTRACK (REMOTE STREAM)
-    // =============================
-
-    this.peerConnection.ontrack = (event) => {
-      console.log('[Peer] ontrack fired:', event.track.kind);
-      this.remoteVideoRef.nativeElement.srcObject = event.streams[0];
-    };
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.signalRService.offerIceCandidate(event.candidate);
-      }
-    };
-
-    this.peerConnection.onconnectionstatechange = () => {
-      console.log('[Peer] Connection state:', this.peerConnection.connectionState);
-    };
-
-    this.peerConnection.oniceconnectionstatechange = () => {
-      console.log('[Peer] ICE state:', this.peerConnection.iceConnectionState);
-    };
-  }
-
-  ensurePeerConnection() {
-    if (!this.peerConnection) {
-      this.setupPeerConnection();
-    }
+    this.signalRService.setPeerConnection(this.peerConnection);
   }
 
   async startCall(user: UserDto) {
-    this.ensurePeerConnection();
+    this.targetUserId = user.id;
+    this.setupPeerConnection();
+    this.signalRService.setPeerConnection(this.peerConnection);
 
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
     console.log(`User to call: ${user.username}, Offer created:`, offer);
     this.signalRService.sendCallOffer({ to: user.id, offer: this.peerConnection.localDescription });
     console.log('[Call] Offer sent');
+  }
+
+  createPeerConnection(): RTCPeerConnection {
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+    return this.peerConnection;
+  }
+
+  cleanupPeerConnection() {
+    if (!this.peerConnection) return;
+
+    this.peerConnection.getSenders().forEach((sender) => {
+      sender.track?.stop();
+    });
+
+    this.peerConnection.ontrack = null;
+    this.peerConnection.onicecandidate = null;
+    this.peerConnection.onconnectionstatechange = null;
+    this.peerConnection.oniceconnectionstatechange = null;
+
+    this.peerConnection.close();
+    this.peerConnection = null as any;
+
+    this.callFacade.updateCallState(false);
+
+    console.log('[Peer] Cleaned up');
+  }
+
+  async restartIce() {
+    if (!this.peerConnection) return;
+
+    console.log('[Peer] Restarting ICE...');
+
+    const offer = await this.peerConnection.createOffer({
+      iceRestart: true,
+    });
+
+    await this.peerConnection.setLocalDescription(offer);
+
+    await this.signalRService.sendRestartOffer(this.targetUserId, offer);
+    console.log('[Peer] Restart offer sent');
   }
 }

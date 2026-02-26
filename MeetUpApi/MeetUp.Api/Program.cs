@@ -7,15 +7,6 @@ namespace MeetUp.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.Listen(System.Net.IPAddress.Parse("127.0.0.1"), 7248, listenOptions =>
-                {
-                    listenOptions.UseHttps("D://MeetUpProject/MeetUpUI/ssl/server.pfx", "myCertificate");
-                });
-
-            });
-
             // Add services to the container.
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

@@ -14,8 +14,6 @@ namespace MeetUp.Api.Hubs
         
         public override async Task OnConnectedAsync()
         {
-            //var connectionId = Context.ConnectionId;
-
             Console.WriteLine($"User Connected: {Context.ConnectionId}");
             await base.OnConnectedAsync();
         }
@@ -53,9 +51,27 @@ namespace MeetUp.Api.Hubs
             await Clients.Client(callOffer.From).SendAsync("ReceiveCallAnswer", callOffer);
         }
 
+        public async Task CallStarted(string from, string to)
+        {
+            await Clients.Client(from).SendAsync("CallStarted");
+            await Clients.Client(to).SendAsync("CallStarted");
+        }
+
         public async Task SendCandidate(object candidate)
         {
             await Clients.Others.SendAsync("ReceiveCandidate", candidate);
+        }
+
+        public async Task CallEnded(string from, string to)
+        {
+            await Clients.Client(from).SendAsync("CallEnded", from, to);
+            await Clients.Client(to).SendAsync("CallEnded", from, to);
+        }
+
+        public async Task SendRestartOffer(string targetUserId, object offer)
+        {
+            await Clients.User(targetUserId)
+                .SendAsync("ReceiveRestartOffer", offer);
         }
     }
 }

@@ -3,7 +3,52 @@ import * as signalR from '@microsoft/signalr';
 import { UsersFacade } from '../store/facades/users.facade';
 import { CallOfferDto } from '../dtos/callofferDto';
 import { CallFacade } from '../store/facades/call.facade';
-import { MeetupHome } from '../pages/meetup-home/meetup-home';
+
+type IncomingCallPayload = {
+  inviteId: string;
+  roomId: string;
+  fromUserId: string;
+  fromUsername: string;
+};
+
+type CallDeclinedPayload = {
+  inviteId: string;
+  roomId: string;
+  declinedByUserId: string;
+  declinedByUsername: string;
+};
+
+type CallAcceptedPayload = {
+  inviteId: string;
+  roomId: string;
+  acceptedByUserId: string;
+  acceptedByUsername: string;
+  users: Array<{ id: string; username: string; isInCall: boolean; roomId?: string | null }>;
+};
+
+type RoomParticipantsPayload = {
+  roomId: string;
+  users: Array<{ id: string; username: string; isInCall: boolean; roomId?: string | null }>;
+};
+
+type CandidatePayload = {
+  roomId: string;
+  from: string;
+  to: string;
+  candidate: RTCIceCandidateInit;
+};
+
+type SignalRCallbacks = {
+  onIncomingCall?: (payload: IncomingCallPayload) => void;
+  onCallDeclined?: (payload: CallDeclinedPayload) => void;
+  onCallAccepted?: (payload: CallAcceptedPayload) => void;
+  onCallFailed?: (message: string) => void;
+  onCallRinging?: (payload: { toUsername: string }) => void;
+  onRoomParticipantsUpdated?: (payload: RoomParticipantsPayload) => void;
+  onReceiveCallOffer?: (offer: CallOfferDto) => void;
+  onReceiveCallAnswer?: (answer: CallOfferDto) => void;
+  onReceiveCandidate?: (candidatePayload: CandidatePayload) => void;
+};
 
 @Injectable()
 export class SignalrService {
@@ -11,14 +56,15 @@ export class SignalrService {
   private callFacade = inject(CallFacade);
   private myConnectionID!: string;
   private hubConnection!: signalR.HubConnection;
-  private peerConnection!: RTCPeerConnection;
-  private caller: string[] = [];
-
-  private meetupComponentInstance!: MeetupHome;
+  private callbacks: SignalRCallbacks = {};
 
   constructor() {
     this.createHubConnection();
     this.myConnectionID = '';
+  }
+
+  get connectionId(): string {
+    return this.myConnectionID;
   }
 
   private createHubConnection() {
@@ -40,146 +86,111 @@ export class SignalrService {
     });
   }
 
-  setPeerConnection(peerConnection: RTCPeerConnection) {
-    this.peerConnection = peerConnection;
-  }
-
   joinUser(username: string) {
     this.hubConnection.invoke('JoinUser', username);
   }
 
-  sendCallOffer(offerData: { to: string; offer: RTCSessionDescription | null }) {
-    this.hubConnection.invoke(
-      'SendCallOffer',
-      new CallOfferDto(this.myConnectionID, offerData.to, offerData.offer!),
-    );
+  startCall(targetUserId: string) {
+    this.hubConnection.invoke('StartCall', targetUserId);
   }
 
-  offerIceCandidate(candidate: RTCIceCandidate) {
-    this.hubConnection.invoke('SendCandidate', candidate);
-    console.log('ICE candidate sent via SignalR: ', candidate);
+  respondToCall(inviteId: string, accepted: boolean) {
+    this.hubConnection.invoke('RespondToCall', inviteId, accepted);
   }
 
-  callEnded() {
-    this.hubConnection.invoke('CallEnded', this.caller[0], this.caller[1]);
+  sendCallOffer(roomId: string, toUserId: string, offer: RTCSessionDescriptionInit) {
+    this.hubConnection.invoke('SendCallOffer', new CallOfferDto(this.myConnectionID, toUserId, roomId, offer));
   }
 
-  async sendRestartOffer(targetUserId: string, offer: RTCSessionDescriptionInit) {
-    if (!this.hubConnection || this.hubConnection.state !== signalR.HubConnectionState.Connected) {
-      console.error('[SignalR] Connection not ready');
-      return;
-    }
+  sendCallAnswer(roomId: string, toUserId: string, answer: RTCSessionDescriptionInit) {
+    this.hubConnection.invoke('SendCallAnswer', new CallOfferDto(this.myConnectionID, toUserId, roomId, answer));
+  }
 
-    try {
-      await this.hubConnection.invoke('SendRestartOffer', targetUserId, offer);
-      console.log('[SignalR] Restart offer sent');
-    } catch (error) {
-      console.error('[SignalR] Failed to send restart offer', error);
-    }
+  sendIceCandidate(roomId: string, toUserId: string, candidate: RTCIceCandidateInit) {
+    this.hubConnection.invoke('SendCandidate', roomId, toUserId, candidate);
+  }
+
+  leaveCall() {
+    this.hubConnection.invoke('LeaveCall');
+    this.callFacade.updateCallState(false);
+  }
+
+  setCallbacks(callbacks: SignalRCallbacks) {
+    this.callbacks = callbacks;
   }
 
   private userJoined() {
-    this.hubConnection.on('UserJoined', (allUsers) => {
+    this.hubConnection.on('UserJoined', (allUsers: Array<{ id: string; username: string; isInCall: boolean; roomId?: string | null }>) => {
       console.log('User joined from server: ', JSON.stringify(allUsers));
-
       this.userFacade.updateUserList(allUsers);
     });
   }
 
-  private receiveIceCandidate() {
-    this.hubConnection.on('ReceiveCandidate', async (candidate: RTCIceCandidate) => {
-      console.log('Received ICE candidate from SignalR: ', candidate);
-      if (this.peerConnection) {
-        try {
-          await this.peerConnection.addIceCandidate(candidate);
-          console.log('ICE candidate added to peer connection');
-        } catch (error) {
-          console.error('Error adding received ICE candidate', error);
-        }
-      }
+  private receiveIncomingCall() {
+    this.hubConnection.on('ReceiveIncomingCall', (payload: IncomingCallPayload) => {
+      this.callbacks.onIncomingCall?.(payload);
+    });
+  }
+
+  private receiveCallDeclined() {
+    this.hubConnection.on('CallDeclined', (payload: CallDeclinedPayload) => {
+      this.callbacks.onCallDeclined?.(payload);
+    });
+  }
+
+  private receiveCallAccepted() {
+    this.hubConnection.on('CallAccepted', (payload: CallAcceptedPayload) => {
+      this.callFacade.updateCallState(true);
+      this.callbacks.onCallAccepted?.(payload);
+    });
+  }
+
+  private receiveCallRinging() {
+    this.hubConnection.on('CallRinging', (payload: { toUsername: string }) => {
+      this.callbacks.onCallRinging?.(payload);
+    });
+  }
+
+  private receiveCallFailed() {
+    this.hubConnection.on('CallFailed', (message: string) => {
+      this.callbacks.onCallFailed?.(message);
+    });
+  }
+
+  private receiveParticipantsUpdated() {
+    this.hubConnection.on('RoomParticipantsUpdated', (payload: RoomParticipantsPayload) => {
+      this.callbacks.onRoomParticipantsUpdated?.(payload);
     });
   }
 
   private receiveCallOffer() {
-    this.hubConnection.on('ReceiveCallOffer', async (callOffer: CallOfferDto) => {
-      console.log('Received call offer:', callOffer);
-
-      if (!this.peerConnection || this.peerConnection.connectionState === 'closed') {
-        this.meetupComponentInstance.setupPeerConnection();
-      }
-
-      await this.peerConnection.setRemoteDescription(callOffer.offer);
-      const offerAnswer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(offerAnswer);
-      this.hubConnection.invoke(
-        'SendCallAnswer',
-        new CallOfferDto(callOffer.from, callOffer.to, this.peerConnection.localDescription!),
-      );
-      this.caller = [callOffer.from, callOffer.to];
+    this.hubConnection.on('ReceiveCallOffer', (callOffer: CallOfferDto) => {
+      this.callbacks.onReceiveCallOffer?.(callOffer);
     });
   }
 
   private receiveCallAnswer() {
-    this.hubConnection.on('ReceiveCallAnswer', async (callOffer: CallOfferDto) => {
-      console.log('Received call answer:', callOffer);
-      await this.peerConnection.setRemoteDescription(callOffer.offer);
-      this.hubConnection.invoke('CallStarted', callOffer.from, callOffer.to);
-      this.caller = [callOffer.from, callOffer.to];
+    this.hubConnection.on('ReceiveCallAnswer', (callOffer: CallOfferDto) => {
+      this.callbacks.onReceiveCallAnswer?.(callOffer);
     });
   }
 
-  private receiveCallStarted() {
-    this.hubConnection.on('CallStarted', () => {
-      this.callFacade.updateCallState(true);
-    });
-  }
-
-  private receiveCallEnded() {
-    this.hubConnection.on('CallEnded', (from: string, to: string) => {
-      console.log(`Call ended by ${from} for ${to}`);
-      this.endCall();
-    });
-  }
-
-  private receiveRestartOffer() {
-    this.hubConnection.on('ReceiveRestartOffer', async (offer) => {
-      console.log('[SignalR] Restart offer received');
-
-      if (!this.peerConnection) {
-        console.warn('PeerConnection not ready');
-        return;
-      }
-
-      await this.peerConnection.setRemoteDescription(offer);
-
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-
-      await this.hubConnection.invoke('SendCallAnswer', answer);
+  private receiveCandidate() {
+    this.hubConnection.on('ReceiveCandidate', (payload: CandidatePayload) => {
+      this.callbacks.onReceiveCandidate?.(payload);
     });
   }
 
   attachSignalRHandlers() {
     this.userJoined();
+    this.receiveIncomingCall();
+    this.receiveCallDeclined();
+    this.receiveCallAccepted();
+    this.receiveCallRinging();
+    this.receiveCallFailed();
+    this.receiveParticipantsUpdated();
     this.receiveCallOffer();
-    this.receiveIceCandidate();
     this.receiveCallAnswer();
-    this.receiveCallStarted();
-    this.receiveCallEnded();
-    this.receiveRestartOffer();
-  }
-
-  endCall() {
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.callFacade.updateCallState(false);
-
-      this.caller = [];
-      console.log('Peer connection closed and call state updated');
-    }
-  }
-
-  setComponent(instance: MeetupHome) {
-    this.meetupComponentInstance = instance;
+    this.receiveCandidate();
   }
 }

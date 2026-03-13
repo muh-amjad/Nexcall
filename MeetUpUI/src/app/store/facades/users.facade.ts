@@ -23,7 +23,7 @@ export class UsersFacade {
     this.store.dispatch(UsersActions.setLoading({ loading }));
   }
 
-  updateUserList(users: { id: string; username: string }[]) {
+  updateUserList(users: User[]) {
     this.store.dispatch(UsersActions.updateUserList({ users }));
   }
 }

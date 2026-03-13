@@ -1,20 +1,32 @@
 <div class="app-container">
-  <!-- Header -->
   <div class="header">
     <h2>Meet Up</h2>
-    @if (!currentUsername) {
+    @if (!currentUsername()) {
       <form [formGroup]="joinForm" (ngSubmit)="join()" class="user-input">
         <input type="text" placeholder="Enter your name" formControlName="username" />
 
         <button type="submit" [disabled]="joinForm.invalid">Join</button>
       </form>
     } @else {
-      <div class="welcome-message">Welcome, {{ currentUsername }}</div>
+      <div class="welcome-message">Welcome, {{ currentUsername() }}</div>
     }
   </div>
 
+  @if (incomingCall(); as incoming) {
+    <div class="incoming-call-banner">
+      <span>{{ incoming.fromUsername }} is calling...</span>
+      <div class="incoming-actions">
+        <button type="button" class="accept-btn" (click)="acceptIncomingCall()">Accept</button>
+        <button type="button" class="reject-btn" (click)="rejectIncomingCall()">Reject</button>
+      </div>
+    </div>
+  }
+
+  @if (ringingMessage()) {
+    <div class="ringing-banner">{{ ringingMessage() }}</div>
+  }
+
   <div class="main-content">
-    <!-- VIDEO SECTION -->
     <div class="content-area">
       <div class="video-section">
         <div class="video-wrapper local-video">
@@ -31,9 +43,12 @@
           </div>
         </div>
 
-        <div class="video-wrapper remote-video">
-          <video #remoteVideo autoplay playsinline></video>
-        </div>
+        @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
+          <div class="video-wrapper remote-video">
+            <video [srcObject]="remote.stream" autoplay playsinline></video>
+            <div class="remote-label">{{ remote.username }}</div>
+          </div>
+        }
       </div>
 
       @if (isInCall().isCallStarted) {
@@ -47,16 +62,19 @@
     <div class="users-section">
       <h3>Joined Users</h3>
 
-      @for (user of sortedUsers; track user.id) {
+      @for (user of sortedUsers(); track user.id) {
         <div class="user-item">
-          <span>
-            {{ user.username }}
-            @if (user.username === currentUsername) {
-              <span> (You) </span>
-            }
-          </span>
+          <div class="user-labels">
+            <span>
+              {{ user.username }}
+              @if (user.username === currentUsername()) {
+                <span> (You) </span>
+              }
+            </span>
+            <span class="status" [class.busy]="user.isInCall">{{ userStatus(user) }}</span>
+          </div>
 
-          @if (user.username !== currentUsername) {
+          @if (canCall(user)) {
             <button (click)="callUser(user)">Call</button>
           }
         </div>

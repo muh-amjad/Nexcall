@@ -35,10 +35,10 @@ D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.build.jso
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.build.json.cache
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.development.json
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.build.endpoints.json
-D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\MeetUp.Api.csproj.Up2Date
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\MeetUp.Api.dll
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\refint\MeetUp.Api.dll
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\MeetUp.Api.pdb
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\MeetUp.Api.genruntimeconfig.cache
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\ref\MeetUp.Api.dll
+D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

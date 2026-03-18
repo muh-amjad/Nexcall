@@ -3,6 +3,7 @@ import * as signalR from '@microsoft/signalr';
 import { UsersFacade } from '../store/facades/users.facade';
 import { CallOfferDto } from '../dtos/callofferDto';
 import { CallFacade } from '../store/facades/call.facade';
+import { AuthService } from './auth.service';
 
 type IncomingCallPayload = {
   inviteId: string;
@@ -54,13 +55,14 @@ type SignalRCallbacks = {
 export class SignalrService {
   private userFacade = inject(UsersFacade);
   private callFacade = inject(CallFacade);
-  private myConnectionID!: string;
+  private authService = inject(AuthService);
+  private myConnectionID = '';
   private hubConnection!: signalR.HubConnection;
+  private handlersAttached = false;
   private callbacks: SignalRCallbacks = {};
 
   constructor() {
     this.createHubConnection();
-    this.myConnectionID = '';
   }
 
   get connectionId(): string {
@@ -69,25 +71,46 @@ export class SignalrService {
 
   private createHubConnection() {
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl('https://localhost:7248/callHub')
+      .withUrl('https://localhost:7248/callHub', {
+        accessTokenFactory: () => this.authService.token() ?? '',
+      })
       .withAutomaticReconnect()
       .build();
 
-    this.hubConnection
-      .start()
-      .then(() => {
-        this.myConnectionID = this.hubConnection.connectionId!;
-        console.log('SignalR Connected with ID: ', this.myConnectionID);
-      })
-      .catch((err) => console.error('SignalR connection failed', err));
-
     this.hubConnection.onreconnected(() => {
+      this.myConnectionID = this.hubConnection.connectionId ?? '';
       console.log('[SignalR] Reconnected');
+      this.joinUser();
     });
   }
 
-  joinUser(username: string) {
-    this.hubConnection.invoke('JoinUser', username);
+  async connectAndJoin() {
+    if (!this.authService.isAuthenticated()) {
+      return;
+    }
+
+    if (this.hubConnection.state === signalR.HubConnectionState.Disconnected) {
+      await this.hubConnection.start();
+      this.myConnectionID = this.hubConnection.connectionId ?? '';
+      console.log('SignalR Connected with ID: ', this.myConnectionID);
+    }
+
+    this.joinUser();
+  }
+
+  async disconnect() {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Disconnected) {
+      await this.hubConnection.stop();
+    }
+
+    this.myConnectionID = '';
+    this.userFacade.updateUserList([]);
+  }
+
+  joinUser() {
+    if (this.hubConnection.state === signalR.HubConnectionState.Connected) {
+      this.hubConnection.invoke('JoinUser');
+    }
   }
 
   startCall(targetUserId: string) {
@@ -111,7 +134,10 @@ export class SignalrService {
   }
 
   leaveCall() {
-    this.hubConnection.invoke('LeaveCall');
+    if (this.hubConnection.state === signalR.HubConnectionState.Connected) {
+      this.hubConnection.invoke('LeaveCall');
+    }
+
     this.callFacade.updateCallState(false);
   }
 
@@ -182,6 +208,10 @@ export class SignalrService {
   }
 
   attachSignalRHandlers() {
+    if (this.handlersAttached) {
+      return;
+    }
+
     this.userJoined();
     this.receiveIncomingCall();
     this.receiveCallDeclined();
@@ -192,5 +222,6 @@ export class SignalrService {
     this.receiveCallOffer();
     this.receiveCallAnswer();
     this.receiveCandidate();
+    this.handlersAttached = true;
   }
 }

@@ -1,0 +1,18 @@
+<section class="home-shell" #hero>
+  <div class="ambient ambient-left"></div>
+  <div class="ambient ambient-right"></div>
+
+  <div class="hero-content">
+    <p class="hero-kicker">Real-time collaboration, redesigned</p>
+    <h1 class="hero-title">MeetUp lets your team talk face-to-face in seconds.</h1>
+    <p class="hero-subtitle">
+      Sign up once, find people by username or email, and start secure browser calls instantly.
+    </p>
+
+    <div class="cta-row" #ctaRow>
+      <button type="button" class="btn btn-primary" routerLink="/signup">Sign up</button>
+      <button type="button" class="btn btn-ghost" routerLink="/login">Log in</button>
+      <button type="button" class="btn btn-soft" (click)="goToMeetSpace()">Open Meet Space</button>
+    </div>
+  </div>
+</section>

@@ -2,8 +2,8 @@
 {
     public class IceCandidateDto
     {
-        public string Candidate { get; set; }       // candidate string
-        public string SdpMid { get; set; }          // media stream id
+        public string Candidate { get; set; } = string.Empty;       // candidate string
+        public string SdpMid { get; set; } = string.Empty;          // media stream id
         public int? SdpMLineIndex { get; set; }     // media line index
     }
 }

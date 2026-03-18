@@ -1,16 +1,16 @@
-<div class="app-container">
-  <div class="header">
-    <h2>Meet Up</h2>
-    @if (!currentUsername()) {
-      <form [formGroup]="joinForm" (ngSubmit)="join()" class="user-input">
-        <input type="text" placeholder="Enter your name" formControlName="username" />
+<div class="app-shell" #pageShell>
+  <header class="top-bar">
+    <div>
+      <p class="kicker">MeetUp Workbench</p>
+      <h1>Call Dashboard</h1>
+      <p class="identity">{{ currentUsername() }} • {{ currentEmail() }}</p>
+    </div>
 
-        <button type="submit" [disabled]="joinForm.invalid">Join</button>
-      </form>
-    } @else {
-      <div class="welcome-message">Welcome, {{ currentUsername() }}</div>
-    }
-  </div>
+    <div class="header-actions">
+      <button type="button" class="secondary" (click)="goHome()">Home</button>
+      <button type="button" class="danger" (click)="logout()">Logout</button>
+    </div>
+  </header>
 
   @if (incomingCall(); as incoming) {
     <div class="incoming-call-banner">
@@ -26,59 +26,86 @@
     <div class="ringing-banner">{{ ringingMessage() }}</div>
   }
 
-  <div class="main-content">
-    <div class="content-area">
-      <div class="video-section">
-        <div class="video-wrapper local-video">
-          <video #localVideo autoplay playsinline></video>
+  <section class="search-panel">
+    <h2>Search Users</h2>
+    <form [formGroup]="searchForm" (ngSubmit)="searchUsers()" class="search-form">
+      <input type="text" formControlName="query" placeholder="Search by username or email" />
+      <button type="submit" [disabled]="searchForm.invalid || searching()">
+        {{ searching() ? 'Searching...' : 'Search' }}
+      </button>
+    </form>
 
-          <div class="video-controls">
-            <button type="button" (click)="toggleCamera()">
-              {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
-            </button>
+    <p class="search-message">{{ searchMessage() }}</p>
 
-            <button type="button" (click)="toggleMic()">
-              {{ isMicOn ? 'Mic Off' : 'Mic On' }}
-            </button>
+    <div class="search-results">
+      @for (result of searchResults(); track result.userId) {
+        <div class="search-item">
+          <div>
+            <strong>{{ result.username }}</strong>
+            <p>{{ result.email }}</p>
+            <span [class.online]="result.isOnline" [class.offline]="!result.isOnline">
+              {{ result.isOnline ? 'Online' : 'Offline' }}
+            </span>
           </div>
+
+          <button type="button" (click)="callSearchedUser(result)" [disabled]="!result.isOnline || !result.connectionId">
+            Call
+          </button>
         </div>
+      }
+    </div>
+  </section>
 
-        @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
-          <div class="video-wrapper remote-video">
-            <video [srcObject]="remote.stream" autoplay playsinline></video>
-            <div class="remote-label">{{ remote.username }}</div>
-          </div>
-        }
+  <main class="main-grid">
+    <section class="video-section">
+      <div class="video-wrapper local-video">
+        <video #localVideo autoplay playsinline muted></video>
+
+        <div class="video-controls">
+          <button type="button" (click)="toggleCamera()">
+            {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
+          </button>
+
+          <button type="button" (click)="toggleMic()">
+            {{ isMicOn ? 'Mic Off' : 'Mic On' }}
+          </button>
+        </div>
       </div>
+
+      @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
+        <div class="video-wrapper remote-video">
+          <video [srcObject]="remote.stream" autoplay playsinline></video>
+          <div class="remote-label">{{ remote.username }}</div>
+        </div>
+      }
 
       @if (isInCall().isCallStarted) {
         <div class="call-actions">
           <button type="button" class="end-call-btn" (click)="endCall()">End Call</button>
         </div>
       }
-    </div>
+    </section>
 
-    <!-- USERS SECTION -->
-    <div class="users-section">
-      <h3>Joined Users</h3>
+    <aside class="users-section">
+      <h3>Online Participants</h3>
 
-      @for (user of sortedUsers(); track user.id) {
+      @if (!onlineUsers().length) {
+        <p class="empty">No active participants yet.</p>
+      }
+
+      @for (user of onlineUsers(); track user.id) {
         <div class="user-item">
           <div class="user-labels">
-            <span>
-              {{ user.username }}
-              @if (user.username === currentUsername()) {
-                <span> (You) </span>
-              }
-            </span>
+            <span>{{ user.username }}</span>
+            <small>{{ user.email || 'No email exposed' }}</small>
             <span class="status" [class.busy]="user.isInCall">{{ userStatus(user) }}</span>
           </div>
 
           @if (canCall(user)) {
-            <button (click)="callUser(user)">Call</button>
+            <button type="button" (click)="callUser(user)">Call</button>
           }
         </div>
       }
-    </div>
-  </div>
+    </aside>
+  </main>
 </div>

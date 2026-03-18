@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MeetUp.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+df35e5552eea0c9d497d6075b1c71185a56a0f0c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a11ab80763a05c2774454cb174558047dae5f867")]
 [assembly: System.Reflection.AssemblyProductAttribute("MeetUp.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MeetUp.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

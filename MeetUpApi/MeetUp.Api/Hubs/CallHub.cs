@@ -1,9 +1,12 @@
 ﻿using MeetUp.Api.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 using System.Collections.Concurrent;
 
 namespace MeetUp.Api.Hubs
 {
+    [Authorize]
     public class CallHub : Hub
     {
         private sealed class CallInvite
@@ -16,6 +19,7 @@ namespace MeetUp.Api.Hubs
 
         private const int MaxUsersPerRoom = 5;
         private static readonly ConcurrentDictionary<string, UserDto> allUsers = new();
+        private static readonly ConcurrentDictionary<string, string> appUserToConnectionMap = new();
         private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> rooms = new();
         private static readonly ConcurrentDictionary<string, CallInvite> pendingInvites = new();
 
@@ -32,20 +36,37 @@ namespace MeetUp.Api.Hubs
         {
             Console.WriteLine($"User Disconnected: {Context.ConnectionId}");
             await RemoveUserFromRoom(Context.ConnectionId);
-            allUsers.TryRemove(Context.ConnectionId, out _);
+            if (allUsers.TryRemove(Context.ConnectionId, out var disconnectedUser))
+            {
+                appUserToConnectionMap.TryRemove(disconnectedUser.AppUserId, out _);
+            }
+
             await BroadcastUsers();
             await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task JoinUser(string username)
+        public async Task JoinUser()
         {
+            var appUserId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var username = Context.User?.Identity?.Name;
+            var email = Context.User?.FindFirstValue(ClaimTypes.Email);
+
+            if (string.IsNullOrWhiteSpace(appUserId)
+                || string.IsNullOrWhiteSpace(username)
+                || string.IsNullOrWhiteSpace(email))
+            {
+                return;
+            }
+
             Console.WriteLine($"{username} joined");
-            UserDto newUser = new UserDto(Context.ConnectionId, username);
+            UserDto newUser = new UserDto(Context.ConnectionId, appUserId, username, email);
             allUsers[Context.ConnectionId] = newUser;
+            appUserToConnectionMap[appUserId] = Context.ConnectionId;
+
             Console.WriteLine($"All users: ");
             allUsers.Values.ToList().ForEach(u =>
             {
-                Console.WriteLine($"ID: ${u.Id}, Username: {u.Username}");
+                Console.WriteLine($"Connection ID: ${u.Id}, Username: {u.Username}");
             });
 
             await BroadcastUsers();
@@ -268,8 +289,21 @@ namespace MeetUp.Api.Hubs
             return userIds.Keys
                 .Select(id => allUsers.TryGetValue(id, out var user) ? user : null)
                 .Where(u => u is not null)
-                .Select(u => new UserDto(u!.Id, u.Username, u.IsInCall, u.RoomId))
+                .Select(u => new UserDto(u!.Id, u.AppUserId, u.Username, u.Email, u.IsInCall, u.RoomId))
                 .ToList();
+        }
+
+        public static bool TryGetOnlineConnectionByAppUserId(string appUserId, out string? connectionId)
+        {
+            if (appUserToConnectionMap.TryGetValue(appUserId, out var mappedConnectionId)
+                && allUsers.ContainsKey(mappedConnectionId))
+            {
+                connectionId = mappedConnectionId;
+                return true;
+            }
+
+            connectionId = null;
+            return false;
         }
 
         private static bool IsInSameRoom(string fromUserId, string toUserId, string roomId)

@@ -1,8 +1,24 @@
-import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
-import { SignalrService } from '../../services/signalr.service';
 import { CommonModule } from '@angular/common';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
+import { gsap } from 'gsap';
+import { UserSearchResultDto } from '../../dtos/user-search-result.dto';
 import { UserDto } from '../../dtos/user.dto';
+import { User } from '../../models/user.model';
+import { AuthService } from '../../services/auth.service';
+import { SignalrService } from '../../services/signalr.service';
+import { UserDirectoryService } from '../../services/user-directory.service';
 import { UsersFacade } from '../../store/facades/users.facade';
 import { CallFacade } from '../../store/facades/call.facade';
 
@@ -13,30 +29,39 @@ import { CallFacade } from '../../store/facades/call.facade';
   styleUrl: './meetup-home.css',
   imports: [CommonModule, ReactiveFormsModule],
 })
-export class MeetupHome implements OnInit {
-  private usersFacade = inject(UsersFacade);
-  private callFacade = inject(CallFacade);
-  private signalRService = inject(SignalrService);
-  private fb = inject(FormBuilder);
+export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
+  private readonly usersFacade = inject(UsersFacade);
+  private readonly callFacade = inject(CallFacade);
+  private readonly signalRService = inject(SignalrService);
+  private readonly authService = inject(AuthService);
+  private readonly userDirectoryService = inject(UserDirectoryService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
-  joinForm: FormGroup;
+  readonly searchForm: FormGroup = this.fb.group({
+    query: ['', [Validators.required, Validators.minLength(2)]],
+  });
 
-  allUsers = this.usersFacade.users;
-  currentUsername = signal('');
-  isInCall = this.callFacade.isCallStarted;
-  currentRoomId = signal<string | null>(null);
-  currentUserId = signal('');
-  incomingCall = signal<{ inviteId: string; roomId: string; fromUserId: string; fromUsername: string } | null>(
+  readonly allUsers = this.usersFacade.users;
+  readonly isInCall = this.callFacade.isCallStarted;
+  readonly currentUsername = computed(() => this.authService.currentUser()?.username ?? '');
+  readonly currentEmail = computed(() => this.authService.currentUser()?.email ?? '');
+
+  readonly currentRoomId = signal<string | null>(null);
+  readonly currentUserConnectionId = signal('');
+
+  readonly incomingCall = signal<{ inviteId: string; roomId: string; fromUserId: string; fromUsername: string } | null>(
     null,
   );
-  ringingMessage = signal('');
-  remoteVideos = signal<Array<{ userId: string; username: string; stream: MediaStream }>>([]);
-  sortedUsers = computed(() => {
-    const username = this.currentUsername();
-    const users = this.allUsers();
-    const me = users.filter((u) => u.username === username);
-    const others = users.filter((u) => u.username !== username);
-    return [...me, ...others];
+  readonly ringingMessage = signal('');
+  readonly remoteVideos = signal<Array<{ userId: string; username: string; stream: MediaStream }>>([]);
+  readonly searchResults = signal<UserSearchResultDto[]>([]);
+  readonly searching = signal(false);
+  readonly searchMessage = signal('Search by username or email to find someone and call if online.');
+
+  readonly onlineUsers = computed(() => {
+    const myConnectionId = this.currentUserConnectionId();
+    return this.allUsers().filter((u) => u.id !== myConnectionId);
   });
 
   isCameraOn = true;
@@ -46,44 +71,89 @@ export class MeetupHome implements OnInit {
   private peerConnections = new Map<string, RTCPeerConnection>();
   private remoteStreams = new Map<string, MediaStream>();
 
+  @ViewChild('pageShell', { static: true })
+  pageShellRef!: ElementRef<HTMLElement>;
+
   @ViewChild('localVideo', { static: true })
   localVideoRef!: ElementRef<HTMLVideoElement>;
-
-  constructor() {
-    this.joinForm = this.fb.group({
-      username: ['', Validators.required],
-    });
-  }
 
   async ngOnInit(): Promise<void> {
     await this.startLocalStream();
     this.bindSignalrCallbacks();
     this.signalRService.attachSignalRHandlers();
+    await this.signalRService.connectAndJoin();
+    this.currentUserConnectionId.set(this.signalRService.connectionId);
   }
 
-  join() {
-    if (this.joinForm.invalid) return;
-    this.currentUsername.set(this.joinForm.value.username);
-    this.currentUserId.set(this.signalRService.connectionId);
-    this.joinForm.reset();
-
-    this.signalRService.joinUser(this.currentUsername());
+  ngAfterViewInit(): void {
+    const shell = this.pageShellRef.nativeElement;
+    gsap.from(shell.querySelectorAll('.top-bar, .search-panel, .video-section, .users-section'), {
+      opacity: 0,
+      y: 22,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: 'power3.out',
+    });
   }
 
-  callUser(user: UserDto) {
-    console.log('Calling', user.username);
+  ngOnDestroy(): void {
+    this.cleanupAllPeerConnections();
+  }
+
+  async searchUsers() {
+    if (this.searchForm.invalid || this.searching()) {
+      return;
+    }
+
+    const query = this.searchForm.getRawValue().query as string;
+    this.searching.set(true);
+    this.searchMessage.set('Searching users...');
+
+    this.userDirectoryService.searchUsers(query).subscribe({
+      next: (results) => {
+        this.searching.set(false);
+        this.searchResults.set(results);
+        this.searchMessage.set(results.length ? `Found ${results.length} user(s).` : 'No users matched your search.');
+      },
+      error: () => {
+        this.searching.set(false);
+        this.searchResults.set([]);
+        this.searchMessage.set('Search failed. Please try again.');
+      },
+    });
+  }
+
+  callSearchedUser(result: UserSearchResultDto) {
+    if (!result.isOnline || !result.connectionId) {
+      window.alert('This user is currently offline.');
+      return;
+    }
+
+    this.callUser(new UserDto(result.username, result.connectionId, result.userId, result.email));
+  }
+
+  callUser(user: User) {
     this.ringingMessage.set(`Ringing ${user.username}...`);
     this.signalRService.startCall(user.id);
   }
 
   endCall() {
-    console.log('Call Ended');
     this.signalRService.leaveCall();
     this.cleanupAllPeerConnections();
     this.currentRoomId.set(null);
     this.remoteVideos.set([]);
     this.ringingMessage.set('');
     this.incomingCall.set(null);
+  }
+
+  async logout() {
+    this.endCall();
+    await this.signalRService.disconnect();
+    this.authService.logout();
+  }
+
+  goHome() {
+    this.router.navigate(['/']);
   }
 
   toggleCamera() {
@@ -113,19 +183,19 @@ export class MeetupHome implements OnInit {
     }
   }
 
-  canCall(user: UserDto): boolean {
-    if (!this.currentUsername()) {
+  canCall(user: User): boolean {
+    if (!this.currentUserConnectionId()) {
       return false;
     }
 
-    if (user.username === this.currentUsername()) {
+    if (user.id === this.currentUserConnectionId()) {
       return false;
     }
 
     return !user.isInCall;
   }
 
-  userStatus(user: UserDto): string {
+  userStatus(user: User): string {
     return user.isInCall ? 'In a call' : 'Available';
   }
 
@@ -161,7 +231,7 @@ export class MeetupHome implements OnInit {
       onCallAccepted: (payload) => {
         this.ringingMessage.set('');
         this.currentRoomId.set(payload.roomId);
-        this.currentUserId.set(this.signalRService.connectionId);
+        this.currentUserConnectionId.set(this.signalRService.connectionId);
         void this.syncParticipants(payload.users);
       },
       onCallFailed: (message) => {
@@ -188,12 +258,10 @@ export class MeetupHome implements OnInit {
     });
   }
 
-  private async syncParticipants(
-    users: Array<{ id: string; username: string; isInCall: boolean; roomId?: string | null }>,
-  ) {
-    this.currentUserId.set(this.signalRService.connectionId);
+  private async syncParticipants(users: User[]) {
+    this.currentUserConnectionId.set(this.signalRService.connectionId);
 
-    const remoteUsers = users.filter((u) => u.id !== this.currentUserId());
+    const remoteUsers = users.filter((u) => u.id !== this.currentUserConnectionId());
     const remoteIds = new Set(remoteUsers.map((u) => u.id));
 
     for (const user of remoteUsers) {
@@ -202,7 +270,7 @@ export class MeetupHome implements OnInit {
         peer = this.createPeerConnection(user.id, user.username);
       }
 
-      const shouldInitiate = this.currentUserId().localeCompare(user.id) > 0;
+      const shouldInitiate = this.currentUserConnectionId().localeCompare(user.id) > 0;
       if (shouldInitiate && peer.signalingState === 'stable') {
         await this.createOfferFor(user.id);
       }
@@ -333,7 +401,6 @@ export class MeetupHome implements OnInit {
     this.peerConnections.delete(remoteUserId);
     this.remoteStreams.delete(remoteUserId);
     this.remoteVideos.update((videos) => videos.filter((video) => video.userId !== remoteUserId));
-
   }
 
   private cleanupAllPeerConnections() {

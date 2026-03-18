@@ -2,7 +2,7 @@
 {
     public class SessionDescriptionDto
     {
-        public string Type { get; set; }     // "offer" or "answer"
-        public string Sdp { get; set; }      // SDP string from browser
+        public string Type { get; set; } = string.Empty;     // "offer" or "answer"
+        public string Sdp { get; set; } = string.Empty;      // SDP string from browser
     }
 }

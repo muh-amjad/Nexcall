@@ -6,17 +6,19 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  effect,
   computed,
   inject,
   signal,
 } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { gsap } from 'gsap';
 import { UserSearchResultDto } from '../../dtos/user-search-result.dto';
 import { UserDto } from '../../dtos/user.dto';
 import { User } from '../../models/user.model';
 import { AuthService } from '../../services/auth.service';
+import { MeetingMediaService } from '../../services/meeting-media.service';
 import { SignalrService } from '../../services/signalr.service';
 import { UserDirectoryService } from '../../services/user-directory.service';
 import { UsersFacade } from '../../store/facades/users.facade';
@@ -34,13 +36,18 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   private readonly callFacade = inject(CallFacade);
   private readonly signalRService = inject(SignalrService);
   private readonly authService = inject(AuthService);
+  private readonly meetingMediaService = inject(MeetingMediaService);
   private readonly userDirectoryService = inject(UserDirectoryService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
   readonly searchForm: FormGroup = this.fb.group({
     query: ['', [Validators.required, Validators.minLength(2)]],
   });
+
+  readonly dashboardMode = signal<'dashboard' | 'call'>('call');
+  readonly mediaError = signal('');
 
   readonly allUsers = this.usersFacade.users;
   readonly isInCall = this.callFacade.isCallStarted;
@@ -64,30 +71,53 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     return this.allUsers().filter((u) => u.id !== myConnectionId);
   });
 
-  isCameraOn = true;
-  isMicOn = true;
-
-  localStream!: MediaStream;
   private peerConnections = new Map<string, RTCPeerConnection>();
-  private remoteStreams = new Map<string, MediaStream>();
+  private readonly remoteStreams = new Map<string, MediaStream>();
 
   @ViewChild('pageShell', { static: true })
   pageShellRef!: ElementRef<HTMLElement>;
 
-  @ViewChild('localVideo', { static: true })
-  localVideoRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('localVideo')
+  localVideoRef?: ElementRef<HTMLVideoElement>;
+
+  constructor() {
+    effect(() => {
+      const stream = this.meetingMediaService.localStream();
+      if (stream) {
+        void this.attachLocalPreview();
+      }
+    });
+  }
 
   async ngOnInit(): Promise<void> {
-    await this.startLocalStream();
+    const modeFromRoute = this.route.snapshot.data['mode'];
+    this.dashboardMode.set(modeFromRoute === 'dashboard' ? 'dashboard' : 'call');
+
     this.bindSignalrCallbacks();
     this.signalRService.attachSignalRHandlers();
     await this.signalRService.connectAndJoin();
     this.currentUserConnectionId.set(this.signalRService.connectionId);
+
+    if (this.dashboardMode() === 'call') {
+      await this.ensureLocalMedia();
+
+      const acceptedPayload = (history.state?.callAcceptedPayload ?? null) as
+        | {
+            roomId: string;
+            users: User[];
+          }
+        | null;
+
+      if (acceptedPayload?.roomId) {
+        this.currentRoomId.set(acceptedPayload.roomId);
+        await this.syncParticipants(acceptedPayload.users);
+      }
+    }
   }
 
   ngAfterViewInit(): void {
     const shell = this.pageShellRef.nativeElement;
-    gsap.from(shell.querySelectorAll('.top-bar, .search-panel, .video-section, .users-section'), {
+    gsap.from(shell.querySelectorAll('.top-bar, .search-panel, .content-section, .users-section'), {
       opacity: 0,
       y: 22,
       duration: 0.8,
@@ -98,6 +128,11 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.cleanupAllPeerConnections();
+    this.signalRService.setCallbacks({});
+
+    if (this.dashboardMode() === 'call') {
+      this.meetingMediaService.stopStream();
+    }
   }
 
   async searchUsers() {
@@ -144,6 +179,8 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     this.remoteVideos.set([]);
     this.ringingMessage.set('');
     this.incomingCall.set(null);
+    this.meetingMediaService.stopStream();
+    this.router.navigate(['/dashboard']);
   }
 
   async logout() {
@@ -156,31 +193,20 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/']);
   }
 
+  openSupport() {
+    window.alert('Support chat widget is ready. We can wire behavior in the next step.');
+  }
+
+  startInstantMeeting() {
+    this.router.navigate(['/preview']);
+  }
+
   toggleCamera() {
-    this.isCameraOn = !this.isCameraOn;
-    this.localStream.getVideoTracks().forEach((track) => (track.enabled = this.isCameraOn));
+    this.meetingMediaService.toggleCamera();
   }
 
   toggleMic() {
-    this.isMicOn = !this.isMicOn;
-    this.localStream.getAudioTracks().forEach((track) => (track.enabled = this.isMicOn));
-  }
-
-  async startLocalStream() {
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-
-      const localVideo = this.localVideoRef.nativeElement;
-      localVideo.srcObject = this.localStream;
-      await localVideo.play();
-
-      console.log('[Local] Stream started');
-    } catch (err) {
-      console.error('Camera/Mic error:', err);
-    }
+    this.meetingMediaService.toggleMic();
   }
 
   canCall(user: User): boolean {
@@ -203,6 +229,10 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     const incomingCall = this.incomingCall();
     if (!incomingCall) {
       return;
+    }
+
+    if (this.dashboardMode() === 'dashboard') {
+      this.router.navigate(['/meet'], { state: { autoStartMedia: true } });
     }
 
     this.signalRService.respondToCall(incomingCall.inviteId, true);
@@ -231,8 +261,21 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       onCallAccepted: (payload) => {
         this.ringingMessage.set('');
         this.currentRoomId.set(payload.roomId);
-        this.currentUserConnectionId.set(this.signalRService.connectionId);
-        void this.syncParticipants(payload.users);
+
+        if (this.dashboardMode() === 'dashboard') {
+          this.router.navigate(['/meet'], {
+            state: {
+              autoStartMedia: true,
+              callAcceptedPayload: payload,
+            },
+          });
+          return;
+        }
+
+        void this.ensureLocalMedia().then(() => {
+          this.currentUserConnectionId.set(this.signalRService.connectionId);
+          return this.syncParticipants(payload.users);
+        });
       },
       onCallFailed: (message) => {
         this.ringingMessage.set('');
@@ -244,6 +287,16 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.currentRoomId.set(payload.roomId);
+        if (this.dashboardMode() === 'dashboard' && this.isCurrentUserInRoom(payload.users)) {
+          this.router.navigate(['/meet'], {
+            state: {
+              autoStartMedia: true,
+              callAcceptedPayload: payload,
+            },
+          });
+          return;
+        }
+
         void this.syncParticipants(payload.users);
       },
       onReceiveCallOffer: (offer) => {
@@ -259,13 +312,15 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async syncParticipants(users: User[]) {
+    await this.ensureLocalMedia();
     this.currentUserConnectionId.set(this.signalRService.connectionId);
 
     const remoteUsers = users.filter((u) => u.id !== this.currentUserConnectionId());
     const remoteIds = new Set(remoteUsers.map((u) => u.id));
 
     for (const user of remoteUsers) {
-      let peer = this.peerConnections.get(user.id);
+      const existing = this.peerConnections.get(user.id);
+      let peer = existing;
       if (!peer) {
         peer = this.createPeerConnection(user.id, user.username);
       }
@@ -284,12 +339,17 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private createPeerConnection(remoteUserId: string, remoteUsername: string): RTCPeerConnection {
+    const localStream = this.meetingMediaService.localStream();
+    if (!localStream) {
+      throw new Error('Local media stream is not available.');
+    }
+
     const connection = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
 
-    this.localStream.getTracks().forEach((track) => {
-      connection.addTrack(track, this.localStream);
+    localStream.getTracks().forEach((track) => {
+      connection.addTrack(track, localStream);
     });
 
     connection.ontrack = (event) => {
@@ -334,6 +394,8 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     roomId: string;
     offer: RTCSessionDescriptionInit;
   }) {
+    await this.ensureLocalMedia();
+
     if (!this.currentRoomId()) {
       this.currentRoomId.set(offer.roomId);
     }
@@ -412,6 +474,46 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     this.remoteStreams.clear();
     this.remoteVideos.set([]);
     this.callFacade.updateCallState(false);
+  }
+
+  private isCurrentUserInRoom(users: Array<{ id: string }>): boolean {
+    const connectionId = this.signalRService.connectionId;
+    if (!connectionId) {
+      return false;
+    }
+
+    return users.some((user) => user.id === connectionId);
+  }
+
+  private async ensureLocalMedia(): Promise<void> {
+    if (this.dashboardMode() !== 'call') {
+      return;
+    }
+
+    try {
+      await this.meetingMediaService.ensureLocalStream();
+      this.mediaError.set('');
+      await this.attachLocalPreview();
+    } catch {
+      this.mediaError.set('Camera and microphone access is required for meetings.');
+    }
+  }
+
+  private async attachLocalPreview(): Promise<void> {
+    const localVideo = this.localVideoRef?.nativeElement;
+    if (!localVideo || this.dashboardMode() !== 'call') {
+      return;
+    }
+
+    await this.meetingMediaService.attachStream(localVideo);
+  }
+
+  get isCameraOn(): boolean {
+    return this.meetingMediaService.isCameraOn();
+  }
+
+  get isMicOn(): boolean {
+    return this.meetingMediaService.isMicOn();
   }
 
   trackByRemoteId(_: number, item: { userId: string }): string {

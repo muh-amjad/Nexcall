@@ -36,12 +36,16 @@ namespace MeetUp.Api.Controllers
                 return BadRequest("Username, email and password are required.");
             }
 
-            var existingUser = await _userRepository.FindByUsernameOrEmailAsync(request.Username, cancellationToken)
-                ?? await _userRepository.FindByUsernameOrEmailAsync(request.Email, cancellationToken);
-
-            if (existingUser is not null)
+            var existingByEmail = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (existingByEmail is not null)
             {
-                return Conflict("Username or email already exists.");
+                return Conflict("Email is already registered.");
+            }
+
+            var existingByUsername = await _userManager.FindByNameAsync(request.Username.Trim());
+            if (existingByUsername is not null)
+            {
+                return Conflict("Username is already taken.");
             }
 
             var newUser = new ApplicationUser

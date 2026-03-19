@@ -33,9 +33,7 @@ export class AuthService {
   }
 
   signup(payload: SignupRequestDto) {
-    return this.http.post<AuthResponseDto>(`${API_BASE_URL}/auth/signup`, payload).pipe(
-      tap((response) => this.applyAuthResponse(response)),
-    );
+    return this.http.post<AuthResponseDto>(`${API_BASE_URL}/auth/signup`, payload);
   }
 
   login(payload: LoginRequestDto) {

@@ -2,11 +2,17 @@
   <header class="top-bar">
     <div>
       <p class="kicker">MeetUp Workbench</p>
-      <h1>Call Dashboard</h1>
+      <h1>{{ dashboardMode() === 'dashboard' ? 'Dashboard' : 'Meeting Room' }}</h1>
       <p class="identity">{{ currentUsername() }} • {{ currentEmail() }}</p>
     </div>
 
     <div class="header-actions">
+      @if (dashboardMode() === 'dashboard') {
+        <button type="button" class="primary" (click)="startInstantMeeting()">Instant Meeting</button>
+      }
+      @if (dashboardMode() === 'call') {
+        <button type="button" class="secondary" (click)="startInstantMeeting()">Preview</button>
+      }
       <button type="button" class="secondary" (click)="goHome()">Home</button>
       <button type="button" class="danger" (click)="logout()">Logout</button>
     </div>
@@ -56,33 +62,57 @@
     </div>
   </section>
 
-  <main class="main-grid">
-    <section class="video-section">
-      <div class="video-wrapper local-video">
-        <video #localVideo autoplay playsinline muted></video>
-
-        <div class="video-controls">
-          <button type="button" (click)="toggleCamera()">
-            {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
-          </button>
-
-          <button type="button" (click)="toggleMic()">
-            {{ isMicOn ? 'Mic Off' : 'Mic On' }}
-          </button>
-        </div>
-      </div>
-
-      @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
-        <div class="video-wrapper remote-video">
-          <video [srcObject]="remote.stream" autoplay playsinline></video>
-          <div class="remote-label">{{ remote.username }}</div>
-        </div>
+  <main class="main-grid" [class.main-grid-call]="dashboardMode() === 'call'">
+    <section class="content-section" [class.content-section-call]="dashboardMode() === 'call'">
+      @if (dashboardMode() === 'dashboard') {
+        <article class="dashboard-hero">
+          <h2>Start conversations in one click</h2>
+          <p>
+            Use Instant Meeting for quick calls or call online teammates directly from the user panel.
+          </p>
+          <div class="hero-actions">
+            <button type="button" class="primary" (click)="startInstantMeeting()">Start Instant Meeting</button>
+          </div>
+        </article>
       }
 
-      @if (isInCall().isCallStarted) {
-        <div class="call-actions">
-          <button type="button" class="end-call-btn" (click)="endCall()">End Call</button>
-        </div>
+      @if (dashboardMode() === 'call') {
+        <section class="meeting-stage">
+          @if (mediaError()) {
+            <p class="media-error">{{ mediaError() }}</p>
+          }
+
+          <div class="remote-grid" [class.empty-grid]="!remoteVideos().length">
+            @if (!remoteVideos().length) {
+              <article class="waiting-card">
+                <h3>Waiting for participants</h3>
+                <p>Invite online users from the right panel to join your room.</p>
+              </article>
+            }
+
+            @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
+              <article class="remote-tile">
+                <video [srcObject]="remote.stream" autoplay playsinline></video>
+                <span class="remote-label">{{ remote.username }}</span>
+              </article>
+            }
+          </div>
+
+          <article class="local-pip">
+            <video #localVideo autoplay playsinline muted></video>
+            <span class="local-label">You</span>
+          </article>
+
+          <div class="meeting-controls">
+            <button type="button" class="secondary" (click)="toggleCamera()">
+              {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
+            </button>
+            <button type="button" class="secondary" (click)="toggleMic()">
+              {{ isMicOn ? 'Mic Off' : 'Mic On' }}
+            </button>
+            <button type="button" class="danger" (click)="endCall()">End Call</button>
+          </div>
+        </section>
       }
     </section>
 
@@ -108,4 +138,9 @@
       }
     </aside>
   </main>
+
+  <button type="button" class="support-fab" (click)="openSupport()" aria-label="Open support chat">
+    <span>?</span>
+    <strong>Support</strong>
+  </button>
 </div>

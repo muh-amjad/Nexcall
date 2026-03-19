@@ -56,12 +56,23 @@ export class SignupPage implements AfterViewInit {
       .subscribe({
         next: () => {
           this.isSubmitting.set(false);
-          this.router.navigate(['/meet']);
+          this.router.navigate(['/login']);
         },
         error: (error) => {
           this.isSubmitting.set(false);
-          const serverError = Array.isArray(error?.error) ? error.error.join(', ') : error?.error?.toString?.();
-          this.errorMessage.set(serverError || 'Sign up failed. Please try a different username or email.');
+          const rawError = Array.isArray(error?.error)
+            ? error.error.join(', ')
+            : typeof error?.error === 'string'
+              ? error.error
+              : error?.error?.toString?.() ?? '';
+
+          const normalizedError = rawError.toLowerCase();
+          if (normalizedError.includes('email is already registered') || normalizedError.includes('email') && normalizedError.includes('exists')) {
+            this.errorMessage.set('Email already registered. Please use another email or log in.');
+            return;
+          }
+
+          this.errorMessage.set(rawError || 'Sign up failed. Please try a different username or email.');
         },
       });
   }

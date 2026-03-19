@@ -52,7 +52,7 @@ export class LoginPage implements AfterViewInit {
     this.authService.login(this.loginForm.getRawValue() as { usernameOrEmail: string; password: string }).subscribe({
       next: () => {
         this.isSubmitting.set(false);
-        this.router.navigate(['/meet']);
+        this.router.navigate(['/dashboard']);
       },
       error: (error) => {
         this.isSubmitting.set(false);

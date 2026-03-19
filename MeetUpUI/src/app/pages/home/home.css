@@ -102,13 +102,7 @@
 .nav-links {
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
-}
-
-.nav-links a {
-  color: #334155;
-  text-decoration: none;
-  font-weight: 600;
+  gap: 0.55rem;
 }
 
 .link-btn {

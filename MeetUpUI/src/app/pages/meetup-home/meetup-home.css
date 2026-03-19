@@ -297,7 +297,7 @@ button {
 .local-pip {
     position: absolute;
     right: 0.8rem;
-    bottom: 4.1rem;
+    bottom: 0.8rem;
     width: min(210px, 34vw);
     aspect-ratio: 4 / 3;
     border-radius: 14px;
@@ -308,13 +308,10 @@ button {
 }
 
 .meeting-controls {
-    position: absolute;
-    left: 0.8rem;
-    right: 0.8rem;
-    bottom: 0.8rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.55rem;
+    margin-top: 0.8rem;
 }
 
 .users-section {
@@ -412,12 +409,12 @@ button {
 
     .remote-grid {
         min-height: 390px;
-        padding-bottom: 5.8rem;
+        padding-bottom: 0.8rem;
     }
 
     .local-pip {
         width: 38vw;
-        bottom: 5rem;
+        bottom: 0.8rem;
     }
 }
 
@@ -430,14 +427,13 @@ button {
     }
 
     .meeting-controls {
-        position: static;
-        padding: 0.8rem;
-        background: rgba(2, 6, 23, 0.76);
+        margin-top: 0.7rem;
+        padding: 0.6rem 0.1rem 0;
     }
 
     .local-pip {
         width: 44vw;
         right: 0.6rem;
-        bottom: 5.7rem;
+        bottom: 0.6rem;
     }
 }

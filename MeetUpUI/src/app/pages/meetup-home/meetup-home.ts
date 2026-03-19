@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   OnDestroy,
@@ -30,6 +31,7 @@ import { CallFacade } from '../../store/facades/call.facade';
   templateUrl: './meetup-home.html',
   styleUrl: './meetup-home.css',
   imports: [CommonModule, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   private readonly usersFacade = inject(UsersFacade);
@@ -50,7 +52,6 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   readonly mediaError = signal('');
 
   readonly allUsers = this.usersFacade.users;
-  readonly isInCall = this.callFacade.isCallStarted;
   readonly currentUsername = computed(() => this.authService.currentUser()?.username ?? '');
   readonly currentEmail = computed(() => this.authService.currentUser()?.email ?? '');
 
@@ -73,6 +74,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
   private peerConnections = new Map<string, RTCPeerConnection>();
   private readonly remoteStreams = new Map<string, MediaStream>();
+  private readonly pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
 
   @ViewChild('pageShell', { static: true })
   pageShellRef!: ElementRef<HTMLElement>;
@@ -101,6 +103,12 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     if (this.dashboardMode() === 'call') {
       await this.ensureLocalMedia();
 
+      const isPreviewJoin = history.state?.source === 'join-now';
+      const shouldStartInstantMeeting = isPreviewJoin && !history.state?.callAcceptedPayload;
+      if (shouldStartInstantMeeting) {
+        this.signalRService.startInstantMeeting();
+      }
+
       const acceptedPayload = (history.state?.callAcceptedPayload ?? null) as
         | {
             roomId: string;
@@ -124,6 +132,10 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       stagger: 0.1,
       ease: 'power3.out',
     });
+
+    if (this.dashboardMode() === 'call') {
+      void this.attachLocalPreview();
+    }
   }
 
   ngOnDestroy(): void {
@@ -232,7 +244,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.dashboardMode() === 'dashboard') {
-      this.router.navigate(['/meet'], { state: { autoStartMedia: true } });
+      this.router.navigate(['/meet'], { state: { autoStartMedia: true, source: 'incoming-call' } });
     }
 
     this.signalRService.respondToCall(incomingCall.inviteId, true);
@@ -276,6 +288,11 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
           this.currentUserConnectionId.set(this.signalRService.connectionId);
           return this.syncParticipants(payload.users);
         });
+      },
+      onInstantMeetingStarted: (payload) => {
+        this.currentRoomId.set(payload.roomId);
+        this.currentUserConnectionId.set(this.signalRService.connectionId);
+        void this.syncParticipants(payload.users);
       },
       onCallFailed: (message) => {
         this.ringingMessage.set('');
@@ -321,6 +338,11 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     for (const user of remoteUsers) {
       const existing = this.peerConnections.get(user.id);
       let peer = existing;
+      if (peer && peer.connectionState === 'closed') {
+        this.removeRemotePeer(user.id);
+        peer = undefined;
+      }
+
       if (!peer) {
         peer = this.createPeerConnection(user.id, user.username);
       }
@@ -394,6 +416,10 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     roomId: string;
     offer: RTCSessionDescriptionInit;
   }) {
+    if (this.currentRoomId() && this.currentRoomId() !== offer.roomId) {
+      return;
+    }
+
     await this.ensureLocalMedia();
 
     if (!this.currentRoomId()) {
@@ -411,6 +437,8 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     }
 
     await peer.setRemoteDescription(new RTCSessionDescription(offer.offer));
+    await this.flushQueuedCandidates(offer.from);
+
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
 
@@ -425,12 +453,17 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     roomId: string;
     offer: RTCSessionDescriptionInit;
   }) {
+    if (this.currentRoomId() && this.currentRoomId() !== answer.roomId) {
+      return;
+    }
+
     const peer = this.peerConnections.get(answer.from);
     if (!peer) {
       return;
     }
 
     await peer.setRemoteDescription(new RTCSessionDescription(answer.offer));
+    await this.flushQueuedCandidates(answer.from);
   }
 
   private async handleCandidate(payload: {
@@ -439,8 +472,18 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     to: string;
     candidate: RTCIceCandidateInit;
   }) {
+    if (this.currentRoomId() && this.currentRoomId() !== payload.roomId) {
+      return;
+    }
+
     const peer = this.peerConnections.get(payload.from);
     if (!peer) {
+      this.queueCandidate(payload.from, payload.candidate);
+      return;
+    }
+
+    if (!peer.remoteDescription) {
+      this.queueCandidate(payload.from, payload.candidate);
       return;
     }
 
@@ -462,6 +505,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
     this.peerConnections.delete(remoteUserId);
     this.remoteStreams.delete(remoteUserId);
+    this.pendingIceCandidates.delete(remoteUserId);
     this.remoteVideos.update((videos) => videos.filter((video) => video.userId !== remoteUserId));
   }
 
@@ -472,8 +516,30 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
     this.peerConnections.clear();
     this.remoteStreams.clear();
+    this.pendingIceCandidates.clear();
     this.remoteVideos.set([]);
     this.callFacade.updateCallState(false);
+  }
+
+  private queueCandidate(remoteUserId: string, candidate: RTCIceCandidateInit) {
+    const existing = this.pendingIceCandidates.get(remoteUserId) ?? [];
+    existing.push(candidate);
+    this.pendingIceCandidates.set(remoteUserId, existing);
+  }
+
+  private async flushQueuedCandidates(remoteUserId: string) {
+    const peer = this.peerConnections.get(remoteUserId);
+    const queued = this.pendingIceCandidates.get(remoteUserId);
+
+    if (!peer || !peer.remoteDescription || !queued?.length) {
+      return;
+    }
+
+    for (const candidate of queued) {
+      await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+
+    this.pendingIceCandidates.delete(remoteUserId);
   }
 
   private isCurrentUserInRoom(users: Array<{ id: string }>): boolean {

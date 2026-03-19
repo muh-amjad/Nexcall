@@ -59,7 +59,21 @@ namespace MeetUp.Api.Hubs
             }
 
             Console.WriteLine($"{username} joined");
-            UserDto newUser = new UserDto(Context.ConnectionId, appUserId, username, email);
+            if (appUserToConnectionMap.TryGetValue(appUserId, out var existingConnectionId)
+                && !string.Equals(existingConnectionId, Context.ConnectionId, StringComparison.Ordinal)
+                && allUsers.TryGetValue(existingConnectionId, out var staleUser))
+            {
+                await RemoveUserFromRoom(existingConnectionId);
+                allUsers.TryRemove(existingConnectionId, out _);
+            }
+
+            var hadExistingConnectionState = allUsers.TryGetValue(Context.ConnectionId, out var existingConnectionUser);
+            UserDto newUser = new UserDto(Context.ConnectionId, appUserId, username, email)
+            {
+                IsInCall = hadExistingConnectionState && existingConnectionUser is not null && existingConnectionUser.IsInCall,
+                RoomId = hadExistingConnectionState ? existingConnectionUser?.RoomId : null,
+            };
+
             allUsers[Context.ConnectionId] = newUser;
             appUserToConnectionMap[appUserId] = Context.ConnectionId;
 
@@ -133,6 +147,41 @@ namespace MeetUp.Api.Hubs
                 toUserId = callee.Id,
                 toUsername = callee.Username,
             });
+        }
+
+        public async Task StartInstantMeeting()
+        {
+            var callerId = Context.ConnectionId;
+            if (!allUsers.TryGetValue(callerId, out var caller))
+            {
+                return;
+            }
+
+            var roomId = caller.RoomId;
+            if (!caller.IsInCall || string.IsNullOrWhiteSpace(roomId))
+            {
+                roomId = Guid.NewGuid().ToString("N");
+                caller.IsInCall = true;
+                caller.RoomId = roomId;
+                await Groups.AddToGroupAsync(caller.Id, roomId);
+                AddUserToRoom(roomId, caller.Id);
+            }
+
+            var roomUsers = GetRoomUsers(roomId!);
+
+            await Clients.Client(callerId).SendAsync("InstantMeetingStarted", new
+            {
+                roomId,
+                users = roomUsers,
+            });
+
+            await Clients.Group(roomId!).SendAsync("RoomParticipantsUpdated", new
+            {
+                roomId,
+                users = roomUsers,
+            });
+
+            await BroadcastUsers();
         }
 
         public async Task RespondToCall(string inviteId, bool accepted)

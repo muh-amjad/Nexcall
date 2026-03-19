@@ -43,6 +43,7 @@ type SignalRCallbacks = {
   onIncomingCall?: (payload: IncomingCallPayload) => void;
   onCallDeclined?: (payload: CallDeclinedPayload) => void;
   onCallAccepted?: (payload: CallAcceptedPayload) => void;
+  onInstantMeetingStarted?: (payload: RoomParticipantsPayload) => void;
   onCallFailed?: (message: string) => void;
   onCallRinging?: (payload: { toUsername: string }) => void;
   onRoomParticipantsUpdated?: (payload: RoomParticipantsPayload) => void;
@@ -59,6 +60,7 @@ export class SignalrService {
   private myConnectionID = '';
   private hubConnection!: signalR.HubConnection;
   private handlersAttached = false;
+  private hasJoinedCurrentConnection = false;
   private callbacks: SignalRCallbacks = {};
 
   constructor() {
@@ -79,8 +81,9 @@ export class SignalrService {
 
     this.hubConnection.onreconnected(() => {
       this.myConnectionID = this.hubConnection.connectionId ?? '';
+      this.hasJoinedCurrentConnection = false;
       console.log('[SignalR] Reconnected');
-      this.joinUser();
+      void this.joinUser();
     });
   }
 
@@ -92,10 +95,11 @@ export class SignalrService {
     if (this.hubConnection.state === signalR.HubConnectionState.Disconnected) {
       await this.hubConnection.start();
       this.myConnectionID = this.hubConnection.connectionId ?? '';
+      this.hasJoinedCurrentConnection = false;
       console.log('SignalR Connected with ID: ', this.myConnectionID);
     }
 
-    this.joinUser();
+    await this.joinUser();
   }
 
   async disconnect() {
@@ -104,13 +108,17 @@ export class SignalrService {
     }
 
     this.myConnectionID = '';
+    this.hasJoinedCurrentConnection = false;
     this.userFacade.updateUserList([]);
   }
 
-  joinUser() {
-    if (this.hubConnection.state === signalR.HubConnectionState.Connected) {
-      this.hubConnection.invoke('JoinUser');
+  async joinUser() {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected || this.hasJoinedCurrentConnection) {
+      return;
     }
+
+    await this.hubConnection.invoke('JoinUser');
+    this.hasJoinedCurrentConnection = true;
   }
 
   startCall(targetUserId: string) {
@@ -119,6 +127,10 @@ export class SignalrService {
 
   respondToCall(inviteId: string, accepted: boolean) {
     this.hubConnection.invoke('RespondToCall', inviteId, accepted);
+  }
+
+  startInstantMeeting() {
+    this.hubConnection.invoke('StartInstantMeeting');
   }
 
   sendCallOffer(roomId: string, toUserId: string, offer: RTCSessionDescriptionInit) {
@@ -189,6 +201,13 @@ export class SignalrService {
     });
   }
 
+  private receiveInstantMeetingStarted() {
+    this.hubConnection.on('InstantMeetingStarted', (payload: RoomParticipantsPayload) => {
+      this.callFacade.updateCallState(true);
+      this.callbacks.onInstantMeetingStarted?.(payload);
+    });
+  }
+
   private receiveCallOffer() {
     this.hubConnection.on('ReceiveCallOffer', (callOffer: CallOfferDto) => {
       this.callbacks.onReceiveCallOffer?.(callOffer);
@@ -219,6 +238,7 @@ export class SignalrService {
     this.receiveCallRinging();
     this.receiveCallFailed();
     this.receiveParticipantsUpdated();
+    this.receiveInstantMeetingStarted();
     this.receiveCallOffer();
     this.receiveCallAnswer();
     this.receiveCandidate();

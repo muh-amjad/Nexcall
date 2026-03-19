@@ -1,7 +1,6 @@
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\appsettings.Development.json
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\appsettings.json
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.staticwebassets.endpoints.json
-D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.exe
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.deps.json
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.runtimeconfig.json
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.dll
@@ -150,4 +149,5 @@ D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\ru\Microsoft.CodeAnalysis
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\tr\Microsoft.CodeAnalysis.Workspaces.resources.dll
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll
+D:\MeetUpProject\MeetUpApi\MeetUp.Api\bin\Debug\net8.0\MeetUp.Api.exe
 D:\MeetUpProject\MeetUpApi\MeetUp.Api\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

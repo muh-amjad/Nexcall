@@ -15,7 +15,6 @@
     </button>
 
     <nav class="nav-links" [class.open]="isMenuOpen()">
-      <a routerLink="/" (click)="closeMenu()">Home</a>
       @if (!isLoggedIn) {
         <button type="button" class="link-btn" (click)="goLogin()">Login</button>
         <button type="button" class="link-btn solid" (click)="goSignup()">Sign Up</button>

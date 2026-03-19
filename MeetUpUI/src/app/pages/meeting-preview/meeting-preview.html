@@ -8,10 +8,6 @@
 
     <div class="video-frame">
       <video #previewVideo autoplay playsinline muted></video>
-      <div class="status-badges">
-        <span>{{ isCameraOn ? 'Camera On' : 'Camera Off' }}</span>
-        <span>{{ isMicOn ? 'Mic On' : 'Mic Off' }}</span>
-      </div>
     </div>
 
     @if (errorMessage()) {

@@ -102,17 +102,17 @@
             <video #localVideo autoplay playsinline muted></video>
             <span class="local-label">You</span>
           </article>
-
-          <div class="meeting-controls">
-            <button type="button" class="secondary" (click)="toggleCamera()">
-              {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
-            </button>
-            <button type="button" class="secondary" (click)="toggleMic()">
-              {{ isMicOn ? 'Mic Off' : 'Mic On' }}
-            </button>
-            <button type="button" class="danger" (click)="endCall()">End Call</button>
-          </div>
         </section>
+
+        <div class="meeting-controls">
+          <button type="button" class="secondary" (click)="toggleCamera()">
+            {{ isCameraOn ? 'Camera Off' : 'Camera On' }}
+          </button>
+          <button type="button" class="secondary" (click)="toggleMic()">
+            {{ isMicOn ? 'Mic Off' : 'Mic On' }}
+          </button>
+          <button type="button" class="danger" (click)="endCall()">End Call</button>
+        </div>
       }
     </section>
 

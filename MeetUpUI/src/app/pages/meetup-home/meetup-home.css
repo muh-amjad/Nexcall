@@ -281,6 +281,21 @@ button {
     display: block;
 }
 
+.remote-tile video.video-hidden {
+    visibility: hidden;
+}
+
+.remote-camera-off {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #cbd5e1;
+    background: rgba(2, 6, 23, 0.88);
+    letter-spacing: 0.02em;
+    font-weight: 700;
+}
+
 .remote-label,
 .local-label {
     position: absolute;
@@ -292,6 +307,25 @@ button {
     border-radius: 999px;
     padding: 0.3rem 0.7rem;
     font-size: 0.8rem;
+}
+
+.remote-mic-status {
+    position: absolute;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    background: rgba(15, 118, 110, 0.85);
+    color: #ecfeff;
+    border: 1px solid rgba(13, 148, 136, 0.7);
+    border-radius: 999px;
+    padding: 0.24rem 0.62rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.remote-mic-status.remote-mic-off {
+    background: rgba(185, 28, 28, 0.85);
+    border-color: rgba(248, 113, 113, 0.75);
+    color: #fee2e2;
 }
 
 .local-pip {

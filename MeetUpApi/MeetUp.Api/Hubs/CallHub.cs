@@ -306,6 +306,24 @@ namespace MeetUp.Api.Hubs
             });
         }
 
+        public async Task UpdateMediaState(string roomId, bool isCameraOn, bool isMicOn)
+        {
+            if (!allUsers.TryGetValue(Context.ConnectionId, out var sender)
+                || string.IsNullOrWhiteSpace(sender.RoomId)
+                || !string.Equals(sender.RoomId, roomId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            await Clients.Group(roomId).SendAsync("MediaStateUpdated", new
+            {
+                roomId,
+                userId = sender.Id,
+                isCameraOn,
+                isMicOn,
+            });
+        }
+
         public async Task LeaveCall()
         {
             var roomId = await RemoveUserFromRoom(Context.ConnectionId);

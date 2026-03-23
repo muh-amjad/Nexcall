@@ -25,6 +25,14 @@ import { UserDirectoryService } from '../../services/user-directory.service';
 import { UsersFacade } from '../../store/facades/users.facade';
 import { CallFacade } from '../../store/facades/call.facade';
 
+type RemoteVideoItem = {
+  userId: string;
+  username: string;
+  stream: MediaStream;
+  isCameraOn: boolean;
+  isMicOn: boolean;
+};
+
 @Component({
   selector: 'app-meetup-home',
   standalone: true,
@@ -62,7 +70,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     null,
   );
   readonly ringingMessage = signal('');
-  readonly remoteVideos = signal<Array<{ userId: string; username: string; stream: MediaStream }>>([]);
+  readonly remoteVideos = signal<RemoteVideoItem[]>([]);
   readonly searchResults = signal<UserSearchResultDto[]>([]);
   readonly searching = signal(false);
   readonly searchMessage = signal('Search by username or email to find someone and call if online.');
@@ -74,7 +82,9 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
   private peerConnections = new Map<string, RTCPeerConnection>();
   private readonly remoteStreams = new Map<string, MediaStream>();
+  private readonly remoteMediaStates = new Map<string, { isCameraOn: boolean; isMicOn: boolean }>();
   private readonly pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
+  private isEndingCall = false;
 
   @ViewChild('pageShell', { static: true })
   pageShellRef!: ElementRef<HTMLElement>;
@@ -106,7 +116,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       const isPreviewJoin = history.state?.source === 'join-now';
       const shouldStartInstantMeeting = isPreviewJoin && !history.state?.callAcceptedPayload;
       if (shouldStartInstantMeeting) {
-        this.signalRService.startInstantMeeting();
+        await this.signalRService.startInstantMeeting();
       }
 
       const acceptedPayload = (history.state?.callAcceptedPayload ?? null) as
@@ -139,6 +149,10 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.dashboardMode() === 'call' && this.currentRoomId() && !this.isEndingCall) {
+      void this.signalRService.leaveCall();
+    }
+
     this.cleanupAllPeerConnections();
     this.signalRService.setCallbacks({});
 
@@ -181,22 +195,23 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
   callUser(user: User) {
     this.ringingMessage.set(`Ringing ${user.username}...`);
-    this.signalRService.startCall(user.id);
+    void this.signalRService.startCall(user.id);
   }
 
-  endCall() {
-    this.signalRService.leaveCall();
+  async endCall(): Promise<void> {
+    this.isEndingCall = true;
+    await this.signalRService.leaveCall();
     this.cleanupAllPeerConnections();
     this.currentRoomId.set(null);
     this.remoteVideos.set([]);
     this.ringingMessage.set('');
     this.incomingCall.set(null);
     this.meetingMediaService.stopStream();
-    this.router.navigate(['/dashboard']);
+    await this.router.navigate(['/dashboard']);
   }
 
   async logout() {
-    this.endCall();
+    await this.endCall();
     await this.signalRService.disconnect();
     this.authService.logout();
   }
@@ -215,10 +230,13 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
   toggleCamera() {
     this.meetingMediaService.toggleCamera();
+    void this.publishLocalMediaState();
   }
 
   toggleMic() {
     this.meetingMediaService.toggleMic();
+    void this.syncAudioSenderState();
+    void this.publishLocalMediaState();
   }
 
   canCall(user: User): boolean {
@@ -247,7 +265,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       this.router.navigate(['/meet'], { state: { autoStartMedia: true, source: 'incoming-call' } });
     }
 
-    this.signalRService.respondToCall(incomingCall.inviteId, true);
+    void this.signalRService.respondToCall(incomingCall.inviteId, true);
     this.incomingCall.set(null);
   }
 
@@ -257,7 +275,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.signalRService.respondToCall(incomingCall.inviteId, false);
+    void this.signalRService.respondToCall(incomingCall.inviteId, false);
     this.incomingCall.set(null);
   }
 
@@ -325,6 +343,30 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
       onReceiveCandidate: (candidatePayload) => {
         void this.handleCandidate(candidatePayload);
       },
+      onMediaStateUpdated: (payload) => {
+        if (payload.userId === this.currentUserConnectionId()) {
+          return;
+        }
+
+        this.remoteMediaStates.set(payload.userId, {
+          isCameraOn: payload.isCameraOn,
+          isMicOn: payload.isMicOn,
+        });
+
+        this.remoteVideos.update((videos) =>
+          videos.map((video) => {
+            if (video.userId !== payload.userId) {
+              return video;
+            }
+
+            return {
+              ...video,
+              isCameraOn: payload.isCameraOn,
+              isMicOn: payload.isMicOn,
+            };
+          }),
+        );
+      },
     });
   }
 
@@ -358,6 +400,8 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
         this.removeRemotePeer(remoteId);
       }
     }
+
+    await this.publishLocalMediaState();
   }
 
   private createPeerConnection(remoteUserId: string, remoteUsername: string): RTCPeerConnection {
@@ -375,14 +419,36 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     });
 
     connection.ontrack = (event) => {
+      const track = event.track;
       const stream = event.streams[0];
       this.remoteStreams.set(remoteUserId, stream);
+
+      if (track.kind === 'video') {
+        this.setRemoteTrackState(remoteUserId, 'video', !track.muted && track.readyState === 'live');
+      }
+
+      if (track.kind === 'audio') {
+        this.setRemoteTrackState(remoteUserId, 'audio', !track.muted && track.readyState === 'live');
+      }
+
+      track.onmute = () => {
+        this.setRemoteTrackState(remoteUserId, track.kind, false);
+      };
+
+      track.onunmute = () => {
+        this.setRemoteTrackState(remoteUserId, track.kind, true);
+      };
+
+      track.onended = () => {
+        this.setRemoteTrackState(remoteUserId, track.kind, false);
+      };
+
       this.updateRemoteVideos(remoteUserId, remoteUsername, stream);
     };
 
     connection.onicecandidate = (event) => {
       if (event.candidate && this.currentRoomId()) {
-        this.signalRService.sendIceCandidate(this.currentRoomId()!, remoteUserId, event.candidate.toJSON());
+        void this.signalRService.sendIceCandidate(this.currentRoomId()!, remoteUserId, event.candidate.toJSON());
       }
     };
 
@@ -406,7 +472,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     await peer.setLocalDescription(offer);
 
     if (peer.localDescription) {
-      this.signalRService.sendCallOffer(this.currentRoomId()!, remoteUserId, peer.localDescription);
+      await this.signalRService.sendCallOffer(this.currentRoomId()!, remoteUserId, peer.localDescription);
     }
   }
 
@@ -443,7 +509,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
     await peer.setLocalDescription(answer);
 
     if (peer.localDescription) {
-      this.signalRService.sendCallAnswer(this.currentRoomId()!, offer.from, peer.localDescription);
+      await this.signalRService.sendCallAnswer(this.currentRoomId()!, offer.from, peer.localDescription);
     }
   }
 
@@ -491,10 +557,43 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateRemoteVideos(remoteUserId: string, remoteUsername: string, stream: MediaStream) {
+    const videoTrack = stream.getVideoTracks()[0];
+    const audioTrack = stream.getAudioTracks()[0];
+
+    const trackedState = this.remoteMediaStates.get(remoteUserId);
+    const isCameraOn =
+      trackedState?.isCameraOn ?? (!!videoTrack && !videoTrack.muted && videoTrack.readyState === 'live');
+    const isMicOn = trackedState?.isMicOn ?? (!!audioTrack && !audioTrack.muted && audioTrack.readyState === 'live');
+
     this.remoteVideos.update((videos) => {
       const current = videos.filter((video) => video.userId !== remoteUserId);
-      return [...current, { userId: remoteUserId, username: remoteUsername, stream }];
+      return [...current, { userId: remoteUserId, username: remoteUsername, stream, isCameraOn, isMicOn }];
     });
+  }
+
+  private setRemoteTrackState(remoteUserId: string, kind: string, isOn: boolean) {
+    const explicitState = this.remoteMediaStates.get(remoteUserId);
+    if (explicitState) {
+      return;
+    }
+
+    this.remoteVideos.update((videos) =>
+      videos.map((video) => {
+        if (video.userId !== remoteUserId) {
+          return video;
+        }
+
+        if (kind === 'video') {
+          return { ...video, isCameraOn: isOn };
+        }
+
+        if (kind === 'audio') {
+          return { ...video, isMicOn: isOn };
+        }
+
+        return video;
+      }),
+    );
   }
 
   private removeRemotePeer(remoteUserId: string) {
@@ -505,6 +604,7 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
     this.peerConnections.delete(remoteUserId);
     this.remoteStreams.delete(remoteUserId);
+    this.remoteMediaStates.delete(remoteUserId);
     this.pendingIceCandidates.delete(remoteUserId);
     this.remoteVideos.update((videos) => videos.filter((video) => video.userId !== remoteUserId));
   }
@@ -516,9 +616,41 @@ export class MeetupHome implements OnInit, AfterViewInit, OnDestroy {
 
     this.peerConnections.clear();
     this.remoteStreams.clear();
+    this.remoteMediaStates.clear();
     this.pendingIceCandidates.clear();
     this.remoteVideos.set([]);
     this.callFacade.updateCallState(false);
+  }
+
+  private async publishLocalMediaState(): Promise<void> {
+    const roomId = this.currentRoomId();
+    if (!roomId || this.dashboardMode() !== 'call') {
+      return;
+    }
+
+    await this.signalRService.sendMediaState(roomId, this.meetingMediaService.isCameraOn(), this.meetingMediaService.isMicOn());
+  }
+
+  private async syncAudioSenderState(): Promise<void> {
+    const localStream = this.meetingMediaService.localStream();
+    if (!localStream) {
+      return;
+    }
+
+    const localAudioTrack = localStream.getAudioTracks()[0] ?? null;
+    const shouldSendAudio = this.meetingMediaService.isMicOn();
+
+    for (const peer of this.peerConnections.values()) {
+      const audioTransceiver = peer
+        .getTransceivers()
+        .find((transceiver) => transceiver.receiver?.track?.kind === 'audio' || transceiver.sender?.track?.kind === 'audio');
+
+      if (!audioTransceiver) {
+        continue;
+      }
+
+      await audioTransceiver.sender.replaceTrack(shouldSendAudio ? localAudioTrack : null);
+    }
   }
 
   private queueCandidate(remoteUserId: string, candidate: RTCIceCandidateInit) {

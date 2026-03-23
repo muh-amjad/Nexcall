@@ -39,6 +39,13 @@ type CandidatePayload = {
   candidate: RTCIceCandidateInit;
 };
 
+type MediaStatePayload = {
+  roomId: string;
+  userId: string;
+  isCameraOn: boolean;
+  isMicOn: boolean;
+};
+
 type SignalRCallbacks = {
   onIncomingCall?: (payload: IncomingCallPayload) => void;
   onCallDeclined?: (payload: CallDeclinedPayload) => void;
@@ -50,6 +57,7 @@ type SignalRCallbacks = {
   onReceiveCallOffer?: (offer: CallOfferDto) => void;
   onReceiveCallAnswer?: (answer: CallOfferDto) => void;
   onReceiveCandidate?: (candidatePayload: CandidatePayload) => void;
+  onMediaStateUpdated?: (payload: MediaStatePayload) => void;
 };
 
 @Injectable()
@@ -121,33 +129,65 @@ export class SignalrService {
     this.hasJoinedCurrentConnection = true;
   }
 
-  startCall(targetUserId: string) {
-    this.hubConnection.invoke('StartCall', targetUserId);
+  async startCall(targetUserId: string): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('StartCall', targetUserId);
   }
 
-  respondToCall(inviteId: string, accepted: boolean) {
-    this.hubConnection.invoke('RespondToCall', inviteId, accepted);
+  async respondToCall(inviteId: string, accepted: boolean): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('RespondToCall', inviteId, accepted);
   }
 
-  startInstantMeeting() {
-    this.hubConnection.invoke('StartInstantMeeting');
+  async startInstantMeeting(): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('StartInstantMeeting');
   }
 
-  sendCallOffer(roomId: string, toUserId: string, offer: RTCSessionDescriptionInit) {
-    this.hubConnection.invoke('SendCallOffer', new CallOfferDto(this.myConnectionID, toUserId, roomId, offer));
+  async sendCallOffer(roomId: string, toUserId: string, offer: RTCSessionDescriptionInit): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('SendCallOffer', new CallOfferDto(this.myConnectionID, toUserId, roomId, offer));
   }
 
-  sendCallAnswer(roomId: string, toUserId: string, answer: RTCSessionDescriptionInit) {
-    this.hubConnection.invoke('SendCallAnswer', new CallOfferDto(this.myConnectionID, toUserId, roomId, answer));
+  async sendCallAnswer(roomId: string, toUserId: string, answer: RTCSessionDescriptionInit): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('SendCallAnswer', new CallOfferDto(this.myConnectionID, toUserId, roomId, answer));
   }
 
-  sendIceCandidate(roomId: string, toUserId: string, candidate: RTCIceCandidateInit) {
-    this.hubConnection.invoke('SendCandidate', roomId, toUserId, candidate);
+  async sendIceCandidate(roomId: string, toUserId: string, candidate: RTCIceCandidateInit): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('SendCandidate', roomId, toUserId, candidate);
   }
 
-  leaveCall() {
+  async sendMediaState(roomId: string, isCameraOn: boolean, isMicOn: boolean): Promise<void> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.hubConnection.invoke('UpdateMediaState', roomId, isCameraOn, isMicOn);
+  }
+
+  async leaveCall(): Promise<void> {
     if (this.hubConnection.state === signalR.HubConnectionState.Connected) {
-      this.hubConnection.invoke('LeaveCall');
+      await this.hubConnection.invoke('LeaveCall');
     }
 
     this.callFacade.updateCallState(false);
@@ -226,6 +266,12 @@ export class SignalrService {
     });
   }
 
+  private receiveMediaStateUpdated() {
+    this.hubConnection.on('MediaStateUpdated', (payload: MediaStatePayload) => {
+      this.callbacks.onMediaStateUpdated?.(payload);
+    });
+  }
+
   attachSignalRHandlers() {
     if (this.handlersAttached) {
       return;
@@ -242,6 +288,7 @@ export class SignalrService {
     this.receiveCallOffer();
     this.receiveCallAnswer();
     this.receiveCandidate();
+    this.receiveMediaStateUpdated();
     this.handlersAttached = true;
   }
 }

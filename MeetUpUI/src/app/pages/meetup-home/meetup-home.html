@@ -92,8 +92,14 @@
 
             @for (remote of remoteVideos(); track trackByRemoteId($index, remote)) {
               <article class="remote-tile">
-                <video [srcObject]="remote.stream" autoplay playsinline></video>
+                <video [srcObject]="remote.stream" autoplay playsinline [class.video-hidden]="!remote.isCameraOn"></video>
+                @if (!remote.isCameraOn) {
+                  <div class="remote-camera-off">Camera Off</div>
+                }
                 <span class="remote-label">{{ remote.username }}</span>
+                <span class="remote-mic-status" [class.remote-mic-off]="!remote.isMicOn">
+                  {{ remote.isMicOn ? 'Mic On' : 'Mic Off' }}
+                </span>
               </article>
             }
           </div>

@@ -6,6 +6,13 @@ dist/
 node_modules/
 tmp/
 temp/
+coverage/
+.eslintcache
+
+# Playwright runtime artifacts
+playwright-report/
+test-results/
+blob-report/
 
 # IDE / editor
 *.sublime-project
@@ -29,6 +36,20 @@ npm-debug.log*
 bin/
 obj/
 out/
+
+# Runtime files
+*.deps.json
+*.runtimeconfig.json
+*.pdb
+*.cache
+*.generated.cs
+*.sourcelink.json
+apphost.exe
+*.nuget.dgspec.json
+*.nuget.g.props
+*.nuget.g.targets
+project.assets.json
+project.nuget.cache
 
 # Publish output
 *.publish.xml

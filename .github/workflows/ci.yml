@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── Backend ──────────────────────────────────────────────────────────────
+  build-api:
+    name: Build & Test API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MeetUpApi
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore NexcallApi.sln
+
+      - name: Build
+        run: dotnet build NexcallApi.sln --no-restore --configuration Release
+
+      - name: Run tests
+        run: dotnet test NexcallApi.sln --no-build --configuration Release --verbosity normal
+
+  # ─── Frontend ─────────────────────────────────────────────────────────────
+  build-ui:
+    name: Build Angular UI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MeetUpUI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: MeetUpUI/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build -- --configuration production
+
+  # ─── Docker ───────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    needs: [build-api, build-ui]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -t nexcall-api:ci -f MeetUpApi/MeetUp.Api/Dockerfile MeetUpApi
+
+      - name: Build UI image
+        run: docker build -t nexcall-ui:ci MeetUpUI

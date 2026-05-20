@@ -20,8 +20,8 @@ services:
 
   api:
     build:
-      context: ./MeetUpApi
-      dockerfile: MeetUp.Api/Dockerfile
+      context: ./NexcallApi
+      dockerfile: NexcallApi/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -39,7 +39,7 @@ services:
 
   ui:
     build:
-      context: ./MeetUpUI
+      context: ./NexcallUI
       dockerfile: Dockerfile
     ports:
       - "4200:80"

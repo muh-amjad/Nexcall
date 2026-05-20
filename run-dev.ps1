@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$apiPath = Join-Path $repoRoot 'NexcallApi\Nexcall.Api'
+$apiPath = Join-Path $repoRoot 'NexcallApi\NexcallApi'
 $uiPath = Join-Path $repoRoot 'NexcallUI'
 
 Write-Host 'Starting backend (dotnet watch run --launch-profile https)...'

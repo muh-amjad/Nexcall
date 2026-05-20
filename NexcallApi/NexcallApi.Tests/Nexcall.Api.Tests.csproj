@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MeetUp.Api\Nexcall.Api.csproj" />
+    <ProjectReference Include="..\NexcallApi\Nexcall.Api.csproj" />
   </ItemGroup>
 
 </Project>

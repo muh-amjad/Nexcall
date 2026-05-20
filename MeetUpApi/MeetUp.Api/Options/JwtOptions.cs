@@ -1,4 +1,4 @@
-namespace MeetUp.Api.Options
+namespace Nexcall.Api.Options
 {
     public class JwtOptions
     {

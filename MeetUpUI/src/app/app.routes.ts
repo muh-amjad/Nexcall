@@ -3,7 +3,7 @@ import { authGuard } from './guards/auth.guard';
 import { HomePage } from './pages/home/home';
 import { LoginPage } from './pages/login/login';
 import { MeetingPreviewPage } from './pages/meeting-preview/meeting-preview';
-import { MeetupHome } from './pages/meetup-home/meetup-home';
+import { MeetupHome } from './pages/Nexcall-home/Nexcall-home';
 import { SignupPage } from './pages/signup/signup';
 
 export const routes: Routes = [

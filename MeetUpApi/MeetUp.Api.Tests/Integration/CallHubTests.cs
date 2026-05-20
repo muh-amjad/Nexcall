@@ -1,11 +1,11 @@
-using MeetUp.Api.Dtos.Auth;
+using Nexcall.Api.Dtos.Auth;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace MeetUp.Api.Tests.Integration;
+namespace Nexcall.Api.Tests.Integration;
 
 public class CallHubTests : IClassFixture<CustomWebApplicationFactory>
 {
@@ -364,7 +364,7 @@ public class CallHubTests : IClassFixture<CustomWebApplicationFactory>
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var username = $"{prefix}-{suffix}";
-        var email = $"{prefix}-{suffix}@meetup.test";
+        var email = $"{prefix}-{suffix}@nexcall.test";
 
         var auth = await SignupAndLogin(username, email);
         return (username, email, auth.Token);

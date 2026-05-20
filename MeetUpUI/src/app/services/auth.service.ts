@@ -9,9 +9,9 @@ import { SignupRequestDto } from '../dtos/signup-request.dto';
 import { AuthUser } from '../models/auth-user.model';
 
 const API_BASE_URL = 'https://localhost:7248/api';
-const AUTH_TOKEN_KEY = 'meetup.auth.token';
-const AUTH_REFRESH_TOKEN_KEY = 'meetup.auth.refresh-token';
-const AUTH_USER_KEY = 'meetup.auth.user';
+const AUTH_TOKEN_KEY = 'Nexcall.auth.token';
+const AUTH_REFRESH_TOKEN_KEY = 'Nexcall.auth.refresh-token';
+const AUTH_USER_KEY = 'Nexcall.auth.user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {

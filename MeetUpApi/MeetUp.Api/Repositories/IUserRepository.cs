@@ -1,6 +1,6 @@
-using MeetUp.Api.Entities;
+using Nexcall.Api.Entities;
 
-namespace MeetUp.Api.Repositories
+namespace Nexcall.Api.Repositories
 {
     public interface IUserRepository
     {

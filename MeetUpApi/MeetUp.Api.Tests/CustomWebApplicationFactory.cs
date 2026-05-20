@@ -1,5 +1,5 @@
-using MeetUp.Api.Data;
-using MeetUp.Api;
+using Nexcall.Api.Data;
+using Nexcall.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace MeetUp.Api.Tests;
+namespace Nexcall.Api.Tests;
 
 public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {

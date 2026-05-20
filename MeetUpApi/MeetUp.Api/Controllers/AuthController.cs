@@ -1,11 +1,11 @@
-using MeetUp.Api.Dtos.Auth;
-using MeetUp.Api.Entities;
-using MeetUp.Api.Repositories;
-using MeetUp.Api.Services;
+using Nexcall.Api.Dtos.Auth;
+using Nexcall.Api.Entities;
+using Nexcall.Api.Repositories;
+using Nexcall.Api.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MeetUp.Api.Controllers
+namespace Nexcall.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

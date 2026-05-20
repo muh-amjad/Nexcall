@@ -1,4 +1,4 @@
-namespace MeetUp.Api.Dtos.Users
+namespace Nexcall.Api.Dtos.Users
 {
     public class UserSearchResultDto
     {

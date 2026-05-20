@@ -1,9 +1,9 @@
-using MeetUp.Api.Dtos.Auth;
+using Nexcall.Api.Dtos.Auth;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace MeetUp.Api.Tests.Integration;
+namespace Nexcall.Api.Tests.Integration;
 
 public class AuthFlowTests : IClassFixture<CustomWebApplicationFactory>
 {
@@ -20,14 +20,14 @@ public class AuthFlowTests : IClassFixture<CustomWebApplicationFactory>
         var alphaSignup = new SignupRequestDto
         {
             Username = "alpha-user",
-            Email = "alpha@meetup.test",
+            Email = "alpha@nexcall.test",
             Password = "Password123!"
         };
 
         var betaSignup = new SignupRequestDto
         {
             Username = "beta-user",
-            Email = "beta@meetup.test",
+            Email = "beta@nexcall.test",
             Password = "Password123!"
         };
 

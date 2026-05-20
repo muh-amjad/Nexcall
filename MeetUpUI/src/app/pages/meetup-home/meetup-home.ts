@@ -34,10 +34,10 @@ type RemoteVideoItem = {
 };
 
 @Component({
-  selector: 'app-meetup-home',
+  selector: 'app-Nexcall-home',
   standalone: true,
-  templateUrl: './meetup-home.html',
-  styleUrl: './meetup-home.css',
+  templateUrl: './Nexcall-home.html',
+  styleUrl: './Nexcall-home.css',
   imports: [CommonModule, ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

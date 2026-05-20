@@ -1,7 +1,7 @@
-using MeetUp.Api.Dtos.Users;
-using MeetUp.Api.Entities;
+using Nexcall.Api.Dtos.Users;
+using Nexcall.Api.Entities;
 
-namespace MeetUp.Api.Mappers
+namespace Nexcall.Api.Mappers
 {
     public static class UserMapper
     {

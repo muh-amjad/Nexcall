@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "MeetUpUI": {
+    "NexcallUI": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -56,10 +56,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "MeetUpUI:build:production"
+              "buildTarget": "NexcallUI:build:production"
             },
             "development": {
-              "buildTarget": "MeetUpUI:build:development"
+              "buildTarget": "NexcallUI:build:development"
             }
           },
           "defaultConfiguration": "development"

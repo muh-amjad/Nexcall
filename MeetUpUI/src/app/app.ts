@@ -15,6 +15,6 @@ import { UsersEffects } from './store/effects/users';
   standalone: true,
 })
 export class App {
-  protected readonly title = signal('MeetUpUI');
+  protected readonly title = signal('NexcallUI');
   constructor() {}
 }

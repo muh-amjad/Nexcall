@@ -1,9 +1,9 @@
 
-using MeetUp.Api.Data;
-using MeetUp.Api.Entities;
-using MeetUp.Api.Options;
-using MeetUp.Api.Repositories;
-using MeetUp.Api.Services;
+using Nexcall.Api.Data;
+using Nexcall.Api.Entities;
+using Nexcall.Api.Options;
+using Nexcall.Api.Repositories;
+using Nexcall.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace MeetUp.Api
+namespace Nexcall.Api
 {
     public partial class Program
     {

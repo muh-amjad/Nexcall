@@ -1,8 +1,8 @@
-using MeetUp.Api.Data;
-using MeetUp.Api.Entities;
+using Nexcall.Api.Data;
+using Nexcall.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace MeetUp.Api.Repositories
+namespace Nexcall.Api.Repositories
 {
     public class UserRepository : IUserRepository
     {

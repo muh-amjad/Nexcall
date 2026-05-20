@@ -1,7 +1,7 @@
-using MeetUp.Api.Dtos.Auth;
-using MeetUp.Api.Entities;
+using Nexcall.Api.Dtos.Auth;
+using Nexcall.Api.Entities;
 
-namespace MeetUp.Api.Services
+namespace Nexcall.Api.Services
 {
     public interface ITokenService
     {

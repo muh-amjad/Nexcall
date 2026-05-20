@@ -9,7 +9,7 @@ import { SignalrService } from '../../services/signalr.service';
 import { UserDirectoryService } from '../../services/user-directory.service';
 import { CallFacade } from '../../store/facades/call.facade';
 import { UsersFacade } from '../../store/facades/users.facade';
-import { MeetupHome } from './meetup-home';
+import { MeetupHome } from './Nexcall-home';
 
 describe('MeetupHome', () => {
   let component: MeetupHome;
@@ -63,7 +63,7 @@ describe('MeetupHome', () => {
     };
 
     const authServiceStub = {
-      currentUser: vi.fn().mockReturnValue({ username: 'tester', email: 'tester@meetup.test' }),
+      currentUser: vi.fn().mockReturnValue({ username: 'tester', email: 'tester@nexcall.test' }),
       logout: vi.fn(),
     };
 

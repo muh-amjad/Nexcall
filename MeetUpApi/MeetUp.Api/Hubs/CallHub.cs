@@ -1,10 +1,10 @@
-﻿using MeetUp.Api.Dtos;
+using Nexcall.Api.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using System.Collections.Concurrent;
 
-namespace MeetUp.Api.Hubs
+namespace Nexcall.Api.Hubs
 {
     [Authorize]
     public class CallHub : Hub

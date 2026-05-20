@@ -1,4 +1,4 @@
-namespace MeetUp.Api.Dtos.Auth
+namespace Nexcall.Api.Dtos.Auth
 {
     public class LoginRequestDto
     {

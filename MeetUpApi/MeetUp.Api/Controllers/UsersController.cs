@@ -1,11 +1,11 @@
-using MeetUp.Api.Hubs;
-using MeetUp.Api.Mappers;
-using MeetUp.Api.Repositories;
+using Nexcall.Api.Hubs;
+using Nexcall.Api.Mappers;
+using Nexcall.Api.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace MeetUp.Api.Controllers
+namespace Nexcall.Api.Controllers
 {
     [ApiController]
     [Authorize]

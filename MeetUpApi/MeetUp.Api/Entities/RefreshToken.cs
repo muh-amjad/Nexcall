@@ -1,4 +1,4 @@
-namespace MeetUp.Api.Entities
+namespace Nexcall.Api.Entities
 {
     public class RefreshToken
     {

@@ -1,6 +1,6 @@
-using MeetUp.Api.Dtos.Auth;
-using MeetUp.Api.Entities;
-using MeetUp.Api.Options;
+using Nexcall.Api.Dtos.Auth;
+using Nexcall.Api.Entities;
+using Nexcall.Api.Options;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -8,7 +8,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace MeetUp.Api.Services
+namespace Nexcall.Api.Services
 {
     public class TokenService : ITokenService
     {

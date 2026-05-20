@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace MeetUp.Api.Entities
+namespace Nexcall.Api.Entities
 {
     public class ApplicationUser : IdentityUser
     {

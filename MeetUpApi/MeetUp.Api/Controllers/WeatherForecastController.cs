@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace MeetUp.Api.Controllers
+namespace Nexcall.Api.Controllers
 {
     [ApiController]
     [Route("[controller]")]

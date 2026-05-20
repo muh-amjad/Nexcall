@@ -1,4 +1,4 @@
-﻿namespace MeetUp.Api.Dtos
+namespace Nexcall.Api.Dtos
 {
     public class IceCandidateDto
     {

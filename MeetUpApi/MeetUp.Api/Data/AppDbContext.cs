@@ -1,8 +1,8 @@
-using MeetUp.Api.Entities;
+using Nexcall.Api.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace MeetUp.Api.Data
+namespace Nexcall.Api.Data
 {
     public class AppDbContext : IdentityDbContext<ApplicationUser>
     {

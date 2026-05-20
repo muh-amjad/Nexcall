@@ -1,4 +1,4 @@
-namespace MeetUp.Api
+namespace Nexcall.Api
 {
     public class WeatherForecast
     {

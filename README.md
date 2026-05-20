@@ -12,21 +12,21 @@ This is a video calling app project
 1. Install UI dependencies:
 
 ```powershell
-cd MeetUpUI
+cd NexcallUI
 npm install
 ```
 
 2. Restore API dependencies:
 
 ```powershell
-cd MeetUpApi/MeetUp.Api
+cd NexcallApi/Nexcall.Api
 dotnet restore
 ```
 
 3. Apply EF Core migrations:
 
 ```powershell
-cd MeetUpApi/MeetUp.Api
+cd NexcallApi/Nexcall.Api
 dotnet ef database update
 ```
 
@@ -44,7 +44,7 @@ This opens two PowerShell windows:
 
 ## Test coverage added
 
-Backend integration tests are in `MeetUpApi/MeetUp.Api.Tests` and cover:
+Backend integration tests are in `NexcallApi/Nexcall.Api.Tests` and cover:
 - signup/login/refresh token flow
 - authenticated user search
 - call initiation via SignalR (incoming call event)
@@ -52,6 +52,6 @@ Backend integration tests are in `MeetUpApi/MeetUp.Api.Tests` and cover:
 Run tests:
 
 ```powershell
-cd MeetUpApi
+cd NexcallApi
 dotnet test
 ```

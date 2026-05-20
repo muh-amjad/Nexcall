@@ -10,7 +10,7 @@ function makeUser(prefix: string): TestUser {
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   return {
     username: `${prefix}-${suffix}`,
-    email: `${prefix}-${suffix}@meetup.test`,
+    email: `${prefix}-${suffix}@nexcall.test`,
     password: 'Password123!',
   };
 }
